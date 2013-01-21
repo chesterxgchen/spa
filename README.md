@@ -172,7 +172,7 @@ then I only need to call the parameterByName once:
    tables and result in one class object
 
   For example
-  <pre>><code>
+  <pre><code>
   class Dummy () {
     @BeanProperty var x:String = null
     @BeanProperty var y:String = null
@@ -186,7 +186,7 @@ then I only need to call the parameterByName once:
   Spa has the following ways to mapping column name (or Column label) to the class methods or parameters.
 
   <ul>
-    <li>No mapping is needed for simple column result Set</li>
+    <li>No mapping is needed for single column result Set</li>
     <li>Use @BeanProperty annotation</li>
     <li>Use @Column annotation</li>
   </ul>
