@@ -40,8 +40,8 @@ not intend to support
 
 Background
 
-This work is inspired by the JPA API native query, which has the ability to provide API by simply pass the class and native SQL.
-The transaction related feature is also inspired by Querulous. The transaction construct is borrowed from there.
+This work is inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
+The original JPA doesn't support batch update, iterator, transaction and other features in SPA. The transaction related feature is inspired by Querulous. The transaction construct is borrowed from there.
 
 Use at your own risk
 
