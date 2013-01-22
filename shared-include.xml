@@ -1,0 +1,110 @@
+<project name="shared-include" default="help" basedir=".">
+
+    <import file="shared-init.xml"/>
+
+    <!-- Scala compiler task -->
+    <taskdef resource="scala/tools/ant/antlib.xml">
+        <classpath>
+            <pathelement location="${scala.lib.dir}/scala-compiler.jar"/>
+            <pathelement location="${scala.lib.dir}/scala-library.jar"/>
+        </classpath>
+    </taskdef>
+
+    <!--- =======================================================
+            common build functions
+      ==========================================================-->
+       <!-- init -->
+       <target name="shared-init" description="initialization">
+
+           <mkdir dir="${test.output}"/>
+           <mkdir dir="${classes.dir}"/>
+           <mkdir dir="${test.classes.dir}"/>
+           <mkdir dir="${dist.dir}"/>
+           <mkdir dir="${build.conf.dir}"/>
+
+          <!-- shared.commons.libraries -->
+           <fileset id="shared.libraries" dir="${lib.dir}">
+             <patternset>
+               <include name="*.jar"/>
+             </patternset>
+           </fileset>
+
+           <fileset id="scala.libraries" dir="${scala.lib.dir}">
+               <patternset>
+                   <include name="scala-*.jar"/>
+               </patternset>
+           </fileset>
+
+          <!-- project.classpath -->
+          <path id="project.classpath">
+              <fileset refid="shared.libraries"/>
+              <fileset refid="scala.libraries"/>
+              <pathelement location="${classes.dir}"/>
+          </path>
+       </target>
+
+       <!-- clean -->
+       <target name="clean" description="cleanup">
+           <echo> cleaning </echo>
+           <delete failonerror="false" quiet = "true" includeemptydirs="true">
+              <fileset dir="${dist.dir}" includes="*.jar" />
+              <fileset dir="${test.output}" includes="**/*"/>
+              <fileset dir="${classes.dir}" includes="**/*" />
+           </delete>
+       </target>
+
+
+
+       <!--  rebuild: note init must be defined to make the code work -->
+    <target name="compile" depends="shared-init" description ="build">
+
+        <javac destdir="${classes.dir}"  debug="${debug}"   includeantruntime ="false" classpathref="compile.classpath" >
+            <src path="${src.main.dir}" />
+            <compilerarg line="-Xlint:unchecked"/>
+        </javac>
+        <scalac srcdir="${src.main.dir}" destdir="${classes.dir}"
+                target="${jvm-target}"   classpathref="project.classpath" force="yes" deprecation="yes">
+            <include name="**/*.scala"/>
+        </scalac>
+
+
+    </target>
+
+
+
+    <target name="compile-test" depends="shared-init" description ="build">
+
+        <javac destdir="${classes.dir}"  debug="${debug}"   includeantruntime ="false" classpathref="compile.classpath" >
+            <src path="${test.dir}" />
+            <compilerarg line="-Xlint:unchecked"/>
+        </javac>
+
+        <scalac srcdir="${test.dir}" destdir="${test.classes.dir}"
+                target="${jvm-target}"   classpathref="compile.classpath" force="yes" deprecation="yes">
+            <include name="**/*.scala"/>
+            <include name="**/*.java"/>
+        </scalac>
+
+    </target>
+
+    <!--  build-->
+    <target name="rebuild" depends="clean,build" description= "rebuild"/>
+
+
+    <target name="build" depends="jar" description ="build"/>
+
+
+    <!--jar: note target init must be defined to make the code work -->
+      <target name="jar" depends="compile" description ="make jar distribution">
+       <jar destfile="${dist.dir}/${jar.name}" duplicate="fail">
+
+           <fileset dir="${build.conf.dir}" excludes="**/.svn" >
+               <include name="**/*"/>
+            </fileset>
+            <fileset dir="${classes.dir}" excludes="**/.svn" />
+       </jar>
+      </target>
+
+    
+
+</project>

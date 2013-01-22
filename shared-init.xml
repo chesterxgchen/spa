@@ -1,0 +1,55 @@
+<project name="shared-init" default="help" basedir=".">
+
+   <!-- ==============================================================
+     Shared init file
+     Xiaoguang (Chester) Chen     chesterxgchen@yahoo.com
+    ============================================================== -->
+
+    <property environment="env"/>
+
+    <!-- Useful shortcuts -->
+    <patternset id="meta.files">
+        <include name="**/*"/>
+    </patternset>
+
+
+    <property name="scala.home" value="${env.SCALA_HOME}"/>
+    <property name="scala.lib.dir" value="${scala.home}/lib"/>
+    <property name="jvm-target" value="jvm-1.5"/>
+
+
+    <property name="lib.dir"     value="${project.home}/lib"/>
+    <property name="bin.dir"     value="${project.home}/bin"/>
+
+
+    <property name="scala.version"    value="2.9.2"/>
+    <property name="build.dir"   value="target/scala-${scala.version}"/>
+    <property name="dist.dir"    value="${build.dir}"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="build.conf.dir"   value="${build.dir}/conf"/>
+    <property name="docs.dir"    value="${build.dir}/api"/>
+    <property name="src.dir"     value="src"/>
+    <property name="src.main.dir" value="${src.dir}/main"/>
+    <property name="src.resources.dir" value="${src.main.dir}/resources"/>
+    <property name="src.scala.dir" value="${src.main.dir}/scala"/>
+    <property name="src.sql.dir"  value="${src.main.dir}/sql"/>
+    <property name="src.conf.dir"  value="${src.main.dir}/conf"/>
+
+    <property name="test.dir"     value="${src.dir}/test"/>
+    <property name="test.scala.dir" value="${test.dir}/scala"/>
+    <property name="test.resources.dir"     value="${test.dir}/resources"/>
+    <property name="test.classes.dir"    value="${build.dir}/test-classes"/>
+    <property name="test.output" value="${build.dir}/test-output"/>
+
+
+    <!-- list all targets with non-empty description-->
+    <target name="help">
+        <java classname="org.apache.tools.ant.Main">
+            <arg value="-projecthelp"/>
+            <arg value="-buildfile"/>
+            <arg value="${ant.file}" />
+        </java>
+
+    </target>
+ 
+</project>

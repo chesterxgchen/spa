@@ -1,0 +1,33 @@
+<!DOCTYPE suite SYSTEM "http://beust.com/testng/testng-1.0.dtd" >
+
+<suite name="spa2" >
+
+    <listeners>
+        <listener class-name="com.xiaoguangchen.testngex.ConsoleReporter" />
+    </listeners>
+
+
+    <test name="common-test" >
+
+   <groups>
+      <run>
+        <!--<include name="datatype"/>-->
+      </run>
+    </groups>
+
+    <packages>
+	  <package name="com.xiaoguangchen.spa.*" />
+    </packages>
+
+
+      <classes>
+
+          <!--
+          <class name="com.xiaoguangchen.spa.AnnotationTest" />
+                    <class name="com.shusiou.microloan.commons.test.resource.tools.ResourceResolverTest" />
+          -->
+      </classes>
+
+  </test>
+
+</suite>

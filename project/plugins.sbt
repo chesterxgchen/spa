@@ -1,0 +1,1 @@
+addSbtPlugin("de.johoop" % "sbt-testng-plugin" % "2.0.3")
