@@ -37,8 +37,9 @@ not intend to support
      
 
 
-
+<h3>
 Background
+</h3>
 
 This work is inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
 The original JPA doesn't support batch update, iterator, transaction and other features in SPA. The transaction related feature is inspired by Querulous. The transaction construct is borrowed from there.
@@ -47,27 +48,31 @@ Use at your own risk
 
 I have used this library for my own projects, mostly small projects. Therefore use at your own risk.
 
-
+<h3>
 License
+</h3>
 
 The project is under Apache License
 
-
-
+<h3>
 Build Scripts
+</h3>
    The project has both sbt build and ant+ ivy build scripts. I am using this project to experiment the
    sbt build. But also want to have the Ant so I can get things done quickly.
-
+   
+<h3>
 Test Framework
+</h3>
    The project uses TestNG framework.
-
+<h3>
 Usage Examples
+</h3>
 
 The following examples will use mySQL database root user
 and information_schema database.
-
-1. Select a Single String value
-
+<h4>
+Select a Single String value
+</h4>
 <pre>
 
 def testSelectSingle() {
@@ -107,7 +112,9 @@ Another example, return Long value
   }
 
 </pre>
-2. Named Argument
+<h4>
+Named Argument
+</h4>
 
  Look the same example in #1, if we change the SQL
 <pre><code>
@@ -146,7 +153,9 @@ then I only need to call the parameterByName once:
 
           .parameterByName("login", "mylogin")
 
-3. Return a list of values
+<h4>
+Return a list of values
+</h4>
     // example 1
     val results = qm.queryWithClass("show databases", classOf[String])
                     .toList()
@@ -155,8 +164,9 @@ then I only need to call the parameterByName once:
     val sqlString = "select table_name from information_schema.tables limit 10, 20"
     val results = qm.queryWithClass(sqlString, classOf[String]).fetchSize(5).toList()
 
-
-4. Customized classes
+<h4>
+Customized classes
+</h4>
 
    In most cases, we would like to return not just String, Long and double, but our
    own classes structures. In OR world, this would mean mapping the table to class object etc.
@@ -193,8 +203,9 @@ then I only need to call the parameterByName once:
 
   Java non-static Inner class and Scala inner class not declared in the companion object are not supported.
 
-
+<h5>
   Single Column Results
+<h5>
 
   Example you see so far are mostly single column of values such String, Long etc.
   But we can also use it for Java/Scala Objects. For example:
@@ -222,9 +233,10 @@ then I only need to call the parameterByName once:
   </code></pre>
 
   There is no mapping needed.
-
-
+  
+<h5>
   Use @BeanProperty annotation
+</h5>
 
   For example, we have class capture the metadata of the database table:
   
@@ -271,8 +283,9 @@ then I only need to call the parameterByName once:
 
   While if you don't want to re-write SQL or simply want to use "select * from ...", when we need to
   map column name directly using Column annotation.
-
+<h5>
   Use @Column Annotation
+</h5>  
 
   1) Annotation the fields with default constructor
 
@@ -338,7 +351,9 @@ Similarly, we can annotation the class in other ways:
   }
 </code></pre>
 
- 4. Query with Iterator
+<h4>
+Query with Iterator
+</h4>
 
   Instead of using Query.toList(), which put every into memory, we can also using
   Query.withIterator() and allows one to process one row at time.
@@ -362,8 +377,9 @@ Similarly, we can annotation the class in other ways:
     }
   }
 </code></pre>
-
- 6. Provide your own way of row extraction.
+<h4>
+ Provide your own way of row extraction.
+</h4>
 
  So far, we only allows one way to processing the result set, that is by providing the
  class of the object. This may be ok for most of use cases, but there are cases that you
@@ -392,7 +408,9 @@ Similarly, we can annotation the class in other ways:
       }
 
 </code></pre>
- 7. update query with "queryForUpdate"
+<h4>
+ update query with "queryForUpdate"
+</h4>
 
    Here is an example using update query to create a database
 <pre><code>
@@ -401,7 +419,9 @@ Similarly, we can annotation the class in other ways:
      qm.queryForUpdate(createTableSql).executeUpdate
 
 </code></pre>
- 8. Transaction
+<h4>
+ Transaction
+</h4>
    In many applications, we need to perform multiple update/deletes. And we would like
    all the updates commit to be atomic: all or nothing.
 
@@ -423,8 +443,9 @@ Similarly, we can annotation the class in other ways:
    additional argument transaction; and all the udpates are within the closure of
    a transaction method.
 
-
- 8. Batch Update
+<h4>
+ Batch Update
+ </h4>
 
    Batch Update requires a Transaction,
 <pre><code>
@@ -438,7 +459,9 @@ Similarly, we can annotation the class in other ways:
        q.executeBatchUpdate
     }
 </code></pre>
-  10. Logging
+<h4>
+Logging
+</h4>
 
    SQL logging
 
@@ -467,21 +490,7 @@ Similarly, we can annotation the class in other ways:
 
   When logConnection = true, the Spa will printout when the jdbc connection is opened and closed.
 
-
-
-
-
-
-
-
-
-
-
-The spa will not provide connection pool management, as connection can simply get from data source or the connection pool
-managed by other libraries. Spa only concerns the JDBC query.
-
-
-<h1> Known Issue </h1>
+<h3> Known Issue </h3>
 
 Downcastng such as converting Long value to Int value doesn't work when returning query value. 
 For example, 
