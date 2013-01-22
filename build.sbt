@@ -1,4 +1,4 @@
-organization := "com.github.chesterxgchen"
+organization := "com.github.chesterxgchen,spa"
 
 name := "spa"
 
