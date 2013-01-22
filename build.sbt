@@ -1,4 +1,6 @@
-name := "com.github.chesterxgchen.spa"
+organization := "com.github.chesterxgchen"
+
+name := "spa"
 
 version := "0.1.0-SNAPSHOT"
 
