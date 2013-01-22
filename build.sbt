@@ -26,5 +26,4 @@ publishTo <<= version { (v: String) =>
     Some("releases"  at nexus + "service/local/staging/deploy/maven2")
 }
 
-
 credentials += Credentials( new File("project/.ivy2/.credentials") )
