@@ -1,4 +1,4 @@
-name := "spa"
+name := "com.github.chesterxgchen.spa"
 
 version := "0.1.0-SNAPSHOT"
 
@@ -18,8 +18,13 @@ testNGParameters      := Seq()
 
 testNGSuites          := Seq("src/test/resources/testng.xml")
 
-
-publishTo := Some(Resolver.file("file",  new File( "/disk2/projects/spa/releases" )) )
+publishTo <<= version { (v: String) =>
+  val nexus = "https://oss.sonatype.org/"
+  if (v.trim.endsWith("SNAPSHOT"))
+    Some("snapshots" at nexus + "content/repositories/snapshots")
+  else
+    Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+}
 
 
 credentials += Credentials( new File("project/.ivy2/.credentials") )
