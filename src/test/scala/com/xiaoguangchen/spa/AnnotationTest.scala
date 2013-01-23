@@ -11,7 +11,7 @@ import reflect.BeanProperty
   * author: Chester Chen (chesterxgchen@yahoo,com)
   * Date: 1/18/13 8:57 PM
   */
-class AnnotationTest {
+class AnnotationTest extends BaseTest{
 
 
   class FieldAnn () {

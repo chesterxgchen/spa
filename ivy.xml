@@ -4,5 +4,6 @@
         <dependency org="org.testng" name="testng" rev="6.8"  conf ="*->default"  transitive="false" />
         <dependency org="com.beust" name="jcommander" rev="1.27" conf ="*->default"  transitive="false" />
         <dependency org="mysql" name="mysql-connector-java" rev="5.1.22" conf ="*->default"  transitive="false" />
+        <dependency org="org.skife.com.typesafe.config" name="typesafe-config" rev="0.3.0" conf ="*->default"  transitive="false" />
     </dependencies>
 </ivy-module>

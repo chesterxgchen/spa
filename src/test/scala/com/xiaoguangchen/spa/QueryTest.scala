@@ -16,7 +16,7 @@ import java.text.SimpleDateFormat
  * Time: 10:13 PM
  *
  * NOTE: The tests require to have MYSQL installed.
- * You will also need to configure the test.properties to provide the root password
+ * You will also need to configure the application.properties to provide the root password
  * for the mySQL database
  *
  */
@@ -117,7 +117,7 @@ object QueryTest {
 
 }
 
-class QueryTest {
+class QueryTest extends BaseTest {
 
  @Test(groups = Array("select", "query", "single"))
  def testSelectSingle() {
@@ -468,11 +468,29 @@ class QueryTest {
   }
 
 
+  @Test(groups = Array("connection"))
+  def testConnection() {
+    try {
+      val conn = getConnection
+      conn.close()
+    }
+    catch {
+      case ex:Exception => assert(false, "failed to get connection: " + ex.getMessage)
+    }
+
+  }
+
+
   def getConnection: Connection = {
 
-    val userName = "root"
-    val password = "admin"
-    val url = "jdbc:mysql://localhost"
+    val userName = config.getString("db.username")
+    val password = config.getString("db.password")
+    val url = config.getString("db.driver.url")
+
+    println(" userName = " + userName)
+    println(" password = " + password)
+    println(" url = " + url)
+
     Class.forName("com.mysql.jdbc.Driver").newInstance()
     val conn = DriverManager.getConnection(url, userName, password)
     conn

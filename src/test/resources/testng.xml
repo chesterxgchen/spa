@@ -11,7 +11,7 @@
 
    <groups>
       <run>
-        <!--<include name="datatype"/>-->
+        <include name="connection"/>
       </run>
     </groups>
 

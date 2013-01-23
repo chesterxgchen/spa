@@ -10,6 +10,9 @@ libraryDependencies += "org.testng" % "testng" % "6.8"
 
 libraryDependencies += "mysql" % "mysql-connector-java" % "5.1.22"
 
+libraryDependencies += "org.skife.com.typesafe.config" % "typesafe-config" % "0.3.0"
+
+
 seq(testNGSettings:_*)
 
 testNGVersion         := "6.4"
@@ -29,3 +32,5 @@ publishTo <<= version { (v: String) =>
 }
 
 credentials += Credentials( new File("project/.ivy2/.credentials") )
+
+fullClasspath in Test += file( "src/test/resources")
