@@ -448,6 +448,7 @@ Query with Iterator
  </h4>
 
    Batch Update requires a Transaction,
+
 <pre><code>
     val InsertSql = "insert into mytest.test(x) values (:x)"
     qm.transaction() { trans =>
@@ -459,6 +460,7 @@ Query with Iterator
        q.executeBatchUpdate
     }
 </code></pre>
+
 <h4>
 Logging
 </h4>

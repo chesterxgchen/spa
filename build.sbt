@@ -6,9 +6,17 @@ version := "0.1.0-SNAPSHOT"
 
 unmanagedBase := file( "lib" ).getAbsoluteFile
 
+
+
+
+resolvers ++= Seq(
+  "spray repo" at "http://repo.spray.io/",
+  "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+)
+
 libraryDependencies += "org.testng" % "testng" % "6.8"
 
-libraryDependencies += "mysql" % "mysql-connector-java" % "5.1.22"
+libraryDependencies += "mysql" % "mysql-connector-java" % "5.1.23"
 
 libraryDependencies += "org.skife.com.typesafe.config" % "typesafe-config" % "0.3.0"
 
