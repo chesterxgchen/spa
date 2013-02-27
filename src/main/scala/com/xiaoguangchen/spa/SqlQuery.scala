@@ -174,9 +174,10 @@ class SqlQuery[A](val queryManager: QueryManager,
         new SQLParameter(param.asInstanceOf[AnyRef],java.sql.Types.NULL)
       else {
         param match {
-          case t:Timestamp => new SQLParameter(t.getTime.asInstanceOf[AnyRef],java.sql.Types.TIMESTAMP)
-          case d:Date =>      new SQLParameter(d.getTime.asInstanceOf[AnyRef],java.sql.Types.TIMESTAMP)
-          case c:Calendar =>  new SQLParameter(c.getTime.getTime.asInstanceOf[AnyRef],java.sql.Types.TIMESTAMP)
+          case t:Timestamp => new SQLParameter(t,java.sql.Types.TIMESTAMP)
+          case d:Date =>      new SQLParameter(new Timestamp(d.getTime),java.sql.Types.TIMESTAMP)
+          case c:Calendar =>  new SQLParameter(new Timestamp(c.getTime.getTime),java.sql.Types.TIMESTAMP)
+
           case s: AnyRef=>    new SQLParameter(s.asInstanceOf[AnyRef],java.sql.Types.JAVA_OBJECT)
           case _ => throw new IllegalArgumentException(" unable to handle parameter " + param )
         }
