@@ -578,6 +578,18 @@ class QueryTest extends BaseTest {
   }
 
 
+  @Test(groups = Array("conn"))
+  def testConnections() {
+    val qm = QueryManager(open = getConnection, logConnection = true)
+    for (i <- 0 until 100 ) {
+      val value= qm.queryWithClass(" select 1 from dual", classOf[Int] ).toSingle()
+    }
+
+
+  }
+
+
+
 
   @Test(groups = Array("connection"))
   def testConnection() {
