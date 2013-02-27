@@ -505,7 +505,24 @@ class QueryTest extends BaseTest {
     assert(formatter.format(dtValue.get) == formatter.format(new Date()) )
 
 
-    // blob data type
+    val createDateTableSql = "create table if not exists mytest.testDate(dt DATETIME)"
+    qm.queryForUpdate(createDateTableSql).executeUpdate
+    val today = new Date()
+    try {
+      qm.queryForUpdate("INSERT INTO mytest.testDate(dt) values (:date) ")
+        .parameterByName("date", today)
+        .executeUpdate
+    }
+    catch {
+      case x:Exception => x.printStackTrace(); assert(false, "failed to update date")
+    }
+
+     val dt = qm.queryWithClass("select dt from mytest.testDate where dt = :date ", classOf[Date])
+               .parameterByName("date",  today).toSingle()
+
+      assert(formatter.format(today) == formatter.format(dt.get) )
+
+      // blob data type
     val dropDbSql = "drop database if exists mytest"
     qm.queryForUpdate(dropDbSql).executeUpdate
     val createDbSql = "create database if not exists mytest"
