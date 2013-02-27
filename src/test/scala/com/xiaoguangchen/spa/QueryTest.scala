@@ -539,6 +539,13 @@ class QueryTest extends BaseTest {
   }
 
 
+  @Test(groups = Array("Precision and Scale"))
+  def testPrecisionAndScales() {
+    assert(false, "tests not implemented")
+  }
+
+
+
   @Test(groups = Array("connection"))
   def testConnection() {
     try {

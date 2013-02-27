@@ -46,6 +46,7 @@ trait ResultSetProcessor {
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
       case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision <= 9) => rs.getInt(columnOffset)
       case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision > 9 && cmd.colPrecision <= 18) => rs.getLong(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision > 18 ) => rs.getBigDecimal(columnOffset)
       case java.sql.Types.DOUBLE | java.sql.Types.FLOAT =>  rs.getDouble(columnOffset)
       case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision > 9) => rs.getBigDecimal(columnOffset)
       case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision <= 9) => rs.getDouble(columnOffset)

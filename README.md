@@ -492,14 +492,20 @@ Logging
 
   When logConnection = true, the Spa will printout when the jdbc connection is opened and closed.
 
+<h4>Decimal Precision and Scale </h4>
+
+ If sql type is Decimal or Numeric, the scale == 0, and precision < 9  return Int
+
+ If sql type is Decimal or Numeric, the scale == 0, and precision <= 18 and precision > 9  return Long
+
+ If sql type is Decimal or Numeric, the scale == 0, and precision > 18   return BigDecimal
+
+ If sql type is Decimal or Numeric, the scale > 0, and precision <= 9 return Double
+
+ If sql type is Decimal or Numeric, the scale > 0, and precision > 9 return BigDecimal
+
+
 <h3> Known Issue </h3>
 
-Downcastng such as converting Long value to Int value doesn't work when returning query value. 
-For example, 
-<pre><code> select count(*) from mytable. </code></pre> 
-The count value is a Long object. But I know the number can
-be represented by Int value, so I told Spa to give me the Int by passing the classOf[Int] in the query. 
-But this will fail. You can work around by pass classOf[Long] and then call value.toInt 
-     
      
      
