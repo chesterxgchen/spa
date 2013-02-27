@@ -8,6 +8,9 @@ import reflect.BeanProperty
 import java.util.Date
 import collection.mutable.ArrayBuffer
 import java.text.SimpleDateFormat
+import java.math.{MathContext, BigDecimal}
+import runtime.ScalaRunTime
+import math.BigDecimal.RoundingMode
 
 
 /**
@@ -317,7 +320,6 @@ class QueryTest extends BaseTest {
               .parameterByName("db", "mytest")
               .parameterByName("table", "test")
               .toSingle()
-    println("count = " + count)
     assert(count.get >= 1)
   }
 
@@ -392,6 +394,58 @@ class QueryTest extends BaseTest {
 
   }
 
+  @Test(groups = Array("bigdecimal"))
+  def testBigDecimal() {
+
+    val qm = QueryManager(open = getConnection, logConnection = true)
+    val dropDbSql = "drop database if exists mytest"
+    qm.queryForUpdate(dropDbSql).executeUpdate
+    val createDbSql = "create database if not exists mytest"
+    qm.queryForUpdate(createDbSql).executeUpdate
+    val createTableSql = "create table if not exists mytest.test(x Decimal(18,4))"
+    qm.queryForUpdate(createTableSql).executeUpdate
+
+    //note: BigDecimal must be java.math.BigDecimal not scala.bigDecimal
+    try {
+      qm.transaction() {transaction =>
+        qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
+          .parameterByName("x", new BigDecimal("1")).executeUpdate
+
+        qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
+          .parameterByName("x", new BigDecimal("1")).executeUpdate
+        throw new Error(" let it fail during transaction")
+      }
+    }
+    catch {
+      case _:Error =>
+    }
+
+    //the inserted rows should have rollback.
+    var count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
+    assert(count != None  )
+    assert( count.get.setScale(0, RoundingMode.HALF_EVEN).intValue == 0 )
+
+    //do one more times
+    qm.transaction() { transaction =>
+      qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
+        .parameterByName("x", 1).executeUpdate
+
+      qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
+        .parameterByName("x", 2).executeUpdate
+    }
+    count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
+    assert(count != None && count.get.setScale(0, RoundingMode.HALF_EVEN).intValue() ==2 )
+
+    val results = qm.queryWithClass("select *  from mytest.test", classOf[BigDecimal]).toList()
+    assert(results.size == 2)
+
+    assert( results.head.setScale(0, RoundingMode.HALF_EVEN).intValue == 1)
+    assert(results.tail.head.setScale(1, RoundingMode.HALF_EVEN).doubleValue() == 2.0)
+
+  }
+
+
+
   @Test(groups = Array("update", "query", "rowExtractor"))
   def testRowExtractor() {
     val qm = QueryManager(open = getConnection)
@@ -415,7 +469,19 @@ class QueryTest extends BaseTest {
 
 
 
-  @Test(groups = Array("select", "query", "datatype"))
+  @Test(groups = Array("select", "query", "bigdecimal"))
+  def testBigdecimal2() {
+    val qm = QueryManager(open = getConnection)
+
+    val bigDecimalValue= qm.queryWithClass(" select 1.0 from dual", classOf[BigDecimal] ).toSingle()
+    val y = bigDecimalValue.get.setScale(1, java.math.RoundingMode.HALF_EVEN)
+    assert(y.doubleValue() == 1.0)
+
+  }
+
+
+
+    @Test(groups = Array("select", "query", "datatype"))
   def testSelectDataType() {
 
     //long data type
@@ -426,6 +492,11 @@ class QueryTest extends BaseTest {
     //double data type
     val dblValue= qm.queryWithClass(" select 1.0 from dual", classOf[Double] ).toSingle()
     assert(dblValue.get == 1.0)
+
+
+    val bigDecimalValue= qm.queryWithClass(" select 1.0 from dual", classOf[BigDecimal] ).toSingle()
+    assert(bigDecimalValue.get.setScale(1, java.math.RoundingMode.HALF_EVEN).doubleValue() == 1.0)
+
 
 
     //date type
@@ -443,7 +514,7 @@ class QueryTest extends BaseTest {
     val createTableSql = "create table if not exists mytest.test2(x BLOB)"
     qm.queryForUpdate(createTableSql).executeUpdate
 
-    val s = new QueryTest.SerializedObj("hi", new Date(), 100);
+    val s = new QueryTest.SerializedObj("hi", new Date(), 100)
     qm.queryForUpdate("insert into mytest.test2(x) values (:x)")
       .parameterByName("x", s)
       .executeUpdate
@@ -486,10 +557,12 @@ class QueryTest extends BaseTest {
     val userName = config.getString("db.username")
     val password = config.getString("db.password")
     val url = config.getString("db.driver.url")
+/*
 
     println(" userName = " + userName)
     println(" password = " + password)
     println(" url = " + url)
+*/
 
     Class.forName("com.mysql.jdbc.Driver").newInstance()
     val conn = DriverManager.getConnection(url, userName, password)

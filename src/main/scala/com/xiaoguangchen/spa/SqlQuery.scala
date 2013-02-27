@@ -289,6 +289,8 @@ class SqlQuery[A](val queryManager: QueryManager,
           (p.parameter, p.sqlType) match {
             case (n, java.sql.Types.NULL) => stmt.setNull(index, p.sqlType)
             case (t, java.sql.Types.TIMESTAMP) => stmt.setTimestamp(index, t.asInstanceOf[Timestamp])
+            case (d, java.sql.Types.DECIMAL) => stmt.setBigDecimal(index, d.asInstanceOf[java.math.BigDecimal])
+            case (x, java.sql.Types.NUMERIC) => stmt.setBigDecimal(index, x.asInstanceOf[java.math.BigDecimal])
             case (o, java.sql.Types.JAVA_OBJECT) =>  stmt.setObject(index, o)
             case _ => throw new IllegalArgumentException(" unable to handle parameter " + p )
           }

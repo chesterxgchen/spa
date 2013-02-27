@@ -1,4 +1,4 @@
-organization := "com.github.chesterxgchen.spa"
+organization := "com.xiaoguangchen"
 
 name := "spa"
 
@@ -11,7 +11,8 @@ unmanagedBase := file( "lib" ).getAbsoluteFile
 
 resolvers ++= Seq(
   "spray repo" at "http://repo.spray.io/",
-  "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+  "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
+   "maven repo " at "http://mvnrepository.com/"
 )
 
 libraryDependencies += "org.testng" % "testng" % "6.8"

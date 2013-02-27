@@ -9,4 +9,4 @@ package com.xiaoguangchen.spa
  */
 
 
-class ColumnMetadata(val colType : Int,val colName : String, val colLabel: String, val colScale: Int)
+class ColumnMetadata(val colType : Int,val colName : String, val colLabel: String, val colScale: Int, val colPrecision: Int)

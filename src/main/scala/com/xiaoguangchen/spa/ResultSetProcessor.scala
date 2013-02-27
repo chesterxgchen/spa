@@ -25,7 +25,8 @@ trait ResultSetProcessor {
     yield new ColumnMetadata(rsmd.getColumnType(i + 1),
       rsmd.getColumnName(i + 1),
       rsmd.getColumnLabel(i + 1),
-      rsmd.getScale(i + 1))
+      rsmd.getScale(i + 1),
+      rsmd.getPrecision(i + 1) )
   }
 
   protected def processRow[T](rs: ResultSet, md: IndexedSeq[ColumnMetadata], rowExtractor: RowExtractor[T]): T = {
@@ -43,9 +44,11 @@ trait ResultSetProcessor {
     val value = cmd.colType match {
       case java.sql.Types.INTEGER | java.sql.Types.SMALLINT | java.sql.Types.TINYINT => rs.getInt(columnOffset)
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0) => rs.getLong(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision <= 9) => rs.getInt(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision > 9 && cmd.colPrecision <= 18) => rs.getLong(columnOffset)
       case java.sql.Types.DOUBLE | java.sql.Types.FLOAT =>  rs.getDouble(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0) => rs.getDouble(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision > 9) => rs.getBigDecimal(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision <= 9) => rs.getDouble(columnOffset)
       case java.sql.Types.DATE | java.sql.Types.TIME | java.sql.Types.TIMESTAMP => timestampToUtilDate(rs.getTimestamp(columnOffset))
       case java.sql.Types.VARCHAR => rs.getString(columnOffset)
       case java.sql.Types.BLOB => rs.getBlob(columnOffset)
@@ -57,7 +60,7 @@ trait ResultSetProcessor {
 
     if (rs.wasNull) return null
 
-    value.asInstanceOf[Any]
+    value
 
   }
 
@@ -82,7 +85,7 @@ trait ResultSetProcessor {
         }
       } else null
 
-      value.asInstanceOf[Any]
+      value
     }
     catch {
       case e: IOException => {

@@ -12,6 +12,7 @@ import scala.Array
 import collection.mutable
 
 
+
 /**
  * Chester Chen (chesterxgchen@yahoo.com
  * Date: 12/23/12
@@ -59,7 +60,21 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
 
       val columnCount = oneRow.size
       if (columnCount == 1) {
-        return  oneRow.head._2.asInstanceOf[T]
+        val value = oneRow.head._2
+        def returnValue =
+          (m_resultClass.getSimpleName, value.getClass.getSimpleName) match {
+            case ("Long", "BigDecimal") => value.asInstanceOf[BigDecimal].longValue()
+            case ("Double", "BigDecimal") => value.asInstanceOf[BigDecimal].doubleValue()
+            case ("int", "Long") => value.asInstanceOf[Long].toInt
+            case ("Integer", "Long") => value.asInstanceOf[Long].toInt
+            case ("Double", "Float") => value.asInstanceOf[Double].toFloat
+            case ("BigDecimal", "Long") => new BigDecimal(value.asInstanceOf[Long])
+            case ("BigDecimal", "Int") => new BigDecimal(value.asInstanceOf[Int])
+            case ("BigDecimal", "Double") => new BigDecimal(value.asInstanceOf[Double])
+            case _ => value
+          }
+
+        return returnValue.asInstanceOf[T]
       }
 
       val methods = m_resultClass.getDeclaredMethods
