@@ -556,6 +556,22 @@ class QueryTest extends BaseTest {
   }
 
 
+  @Test(groups = Array("null"))
+  def testNullValue() {
+    val qm = QueryManager(open = getConnection)
+    //int type
+
+    val createTableSql = "create table if not exists mytest.testNull(id Integer, x Date)"
+    qm.queryForUpdate(createTableSql).executeUpdate
+    qm.queryForUpdate("insert into mytest.testNull(id, x) values (1, :x)")
+      .parameterByName("x", null)
+      .executeUpdate
+
+    val dateValue= qm.queryWithClass(" select x from mytest.testNull", classOf[Date] ).toSingle()
+    assert(dateValue.get == null)
+  }
+
+
   @Test(groups = Array("Precision and Scale"))
   def testPrecisionAndScales() {
     assert(false, "tests not implemented")

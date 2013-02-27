@@ -61,6 +61,8 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
       val columnCount = oneRow.size
       if (columnCount == 1) {
         val value = oneRow.head._2
+        if (value == null) return null.asInstanceOf[T]
+
         def returnValue =
           (m_resultClass.getSimpleName, value.getClass.getSimpleName) match {
             case ("Long", "BigDecimal") => value.asInstanceOf[BigDecimal].longValue()
