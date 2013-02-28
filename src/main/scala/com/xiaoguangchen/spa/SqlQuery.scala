@@ -7,8 +7,9 @@ import java.util.{Calendar, Date}
 import java.sql._
 import collection._
 import java.util.regex.Pattern
-import mutable.ArrayBuffer
+import collection.mutable.ArrayBuffer
 import scala.Array
+import scala.Some
 import scala.Some
 
 
@@ -16,7 +17,7 @@ class SqlQuery[A](val queryManager: QueryManager,
                   val sql: String,
                   queryType: QueryType = QueryType.PREPARED,
                   rowProcessor: RowExtractor[A],
-                  transaction : Transaction = null ) extends Query[A] {
+                  transaction : Transaction ) extends Query[A] {
 
   class ParsedSql(val sql: String, val parameterPositions: mutable.Map[String, ArrayBuffer[Int]])
 
@@ -25,7 +26,6 @@ class SqlQuery[A](val queryManager: QueryManager,
   val m_parsed = parseSqlString(sql)
   val m_rowProcessor = rowProcessor
   var m_batch = false
-  var m_batchStmt: PreparedStatement = null
 
   /* JDBC default value */
   var m_fetchSize: Int = 10
@@ -36,6 +36,10 @@ class SqlQuery[A](val queryManager: QueryManager,
   var m_logSql: Boolean = false
   var m_namedParameters: mutable.Map[String, SQLParameter] = mutable.Map()
   var m_positionedParameters: mutable.Map[Int, SQLParameter] = mutable.Map()
+
+  case class PositionParameters(posParam: mutable.Map[Int, SQLParameter] )
+
+  var m_batchPositionedParameters: mutable.ArrayBuffer[PositionParameters] = mutable.ArrayBuffer()
 
   var m_logPosParameters: mutable.Map[Int, SQLParameter] = mutable.Map()
   var m_logNamedParameters: mutable.Map[String, SQLParameter] = mutable.Map()
@@ -108,14 +112,32 @@ class SqlQuery[A](val queryManager: QueryManager,
 
 
   def executeBatchUpdate: Array[Int] = {
-    require(m_batchStmt != null, "statement is null, need to call addBatch() first")
-    require(this.transaction != null, "batch update requires a transaction")
-    withCleanup {
-      if (m_logSql) logSql()
-      execBatchStatement {
-        m_batchStmt.executeBatch
+
+   def internalBatchUpdate(trans: Transaction): Array[Int] = {
+      setTransactionIsolation(trans.connection)
+      val stmt = prepareStatement(trans.connection)
+      withStatement(stmt) {
+        if (m_logSql) logSql()
+        for ( p <- m_batchPositionedParameters) {
+          setParameters(stmt, p.posParam)
+          stmt.addBatch()
+        }
+        stmt.executeBatch()
       }
     }
+
+    withCleanup {
+      val trans = this.transaction
+      if (trans != null) {
+        internalBatchUpdate(trans)
+      }
+      else {
+        queryManager.transaction(this.transaction) { trans =>
+          internalBatchUpdate(trans)
+        }
+      }
+    }
+
   }
 
 
@@ -143,13 +165,10 @@ class SqlQuery[A](val queryManager: QueryManager,
 
 
   def addBatch(): Query[A] = {
-    require(this.transaction != null)
     m_batch = true
-    if (m_batchStmt == null) {
-      m_batchStmt = prepareStatement(this.transaction.connection)
-    }
-    setParameters(m_batchStmt)
-    m_batchStmt.addBatch()
+    val posParams = PositionParameters(m_positionedParameters)
+    m_batchPositionedParameters  += posParams.copy()
+
     this
   }
 
@@ -242,17 +261,16 @@ class SqlQuery[A](val queryManager: QueryManager,
 
   private def checkParameterIndex(i: Int) {
     if (i <= 0) {
-      if (m_batch) closeStatement(m_batchStmt)
       require(i > 0, "index must start at 1, current index:" + i)
     }
   }
 
-  private def logSql() {
+  private def logSql():Unit= {
 
     println("\n======================================================\n ")
     println("original sql:" + sql + "\n")
     println("parsed sql :" + m_parsed.sql + "\n")
-     if (!m_batch) {
+   if (!m_batch) {
       logOneSetParameters(m_logPosParameters, m_logNamedParameters)
     }
     else {
@@ -281,12 +299,12 @@ class SqlQuery[A](val queryManager: QueryManager,
     }
   }
 
-  private def setParameters(stmt: PreparedStatement) {
+  private def setParameters(stmt: PreparedStatement, params: mutable.Map[Int, SQLParameter] = m_positionedParameters) {
 
     copyParametersForLog()
     this.queryType  match {
       case PREPARED =>
-        for ((index, p) <- m_positionedParameters) {
+        for ((index, p) <- params) {
           (p.parameter, p.sqlType) match {
             case (n, java.sql.Types.NULL) => stmt.setNull(index, p.sqlType)
             case (t, java.sql.Types.TIMESTAMP) => stmt.setTimestamp(index, t.asInstanceOf[Timestamp])
@@ -321,6 +339,8 @@ class SqlQuery[A](val queryManager: QueryManager,
   private def resetParameterMap() {
     m_positionedParameters = mutable.Map()
     m_namedParameters = mutable.Map()
+    m_batchPositionedParameters = mutable.ArrayBuffer()
+
   }
 
   private def resetLogParameterMap() {
@@ -360,35 +380,9 @@ class SqlQuery[A](val queryManager: QueryManager,
     }
   }
 
-  private def withBatchStatement[T] (f: => T): T = {
-    try {
-      f
-    }
-    catch {
-      case e: Throwable => {
-        closeStatement(m_batchStmt)
-        m_batchStmt = null
-        throw new QueryException("Failed to add Batch", e)
-      }
-    }
-  }
 
   private def closeStatement(stmt: Statement) {
     try {if (stmt != null) stmt.close()} catch {case _: Throwable =>}
-  }
-
-  private def execBatchStatement[T](f: => T): T = {
-    try {
-      f
-    }
-    catch {
-      case e: Throwable => throw new QueryException("Failed to add Batch", e)
-    }
-    finally {
-      closeStatement(m_batchStmt)
-      m_batchStmt = null
-    }
-
   }
 
 

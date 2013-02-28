@@ -584,9 +584,38 @@ class QueryTest extends BaseTest {
     for (i <- 0 until 100 ) {
       val value= qm.queryWithClass(" select 1 from dual", classOf[Int] ).toSingle()
     }
+  }
 
+  @Test(groups = Array("conn", "conn2"))
+  def testConnection2() {
+
+    val qm = QueryManager(open = getConnection, logConnection = true)
+    val createTableSql = "create table if not exists mytest.test(x Integer)"
+    qm.queryForUpdate(createTableSql).executeUpdate
+
+    for (i <- 0 until 100 ) {
+      val q = qm.queryForUpdate("update mytest.test set x = :x")
+      q.parameterByName("x", 1)
+      q.executeUpdate
+   }
 
   }
+
+  @Test(groups = Array("conn", "conn3"))
+  def testConnection3() {
+
+    val qm = QueryManager(open = getConnection, logConnection = true)
+    val createTableSql = "create table if not exists mytest.test(x Integer)"
+    qm.queryForUpdate(createTableSql).executeUpdate
+
+    val q = qm.queryForUpdate("update mytest.test set x = :x")
+    for (i <- 0 until 100 ) {
+        q.parameterByName("x", 1)
+        q.addBatch()
+    }
+    q.executeBatchUpdate
+  }
+
 
 
 
