@@ -68,8 +68,6 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
 
   protected[spa]  def withConnection[A](conn : Connection) (f: Connection => A): A = {
     val connection = if(conn == null) open else conn
-    println("logConnection = " + logConnection)
-    println("conn == null = " + (conn == null))
     if (logConnection && conn == null) println("Database connection established")
 
     checkConnection(connection)
