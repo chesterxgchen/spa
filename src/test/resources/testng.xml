@@ -11,7 +11,9 @@
 
    <groups>
       <run>
-<!--        <include name="conn3"/>-->
+<!--
+        <include name="update"/>
+-->
       </run>
     </groups>
 

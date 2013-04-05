@@ -4,10 +4,9 @@ name := "spa"
 
 version := "0.1.0-SNAPSHOT"
 
+scalaVersion  := "2.10.1"
+
 unmanagedBase := file( "lib" ).getAbsoluteFile
-
-
-
 
 resolvers ++= Seq(
   "spray repo" at "http://repo.spray.io/",

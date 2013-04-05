@@ -161,7 +161,7 @@ class QueryTest extends BaseTest {
 
     assert(!results.filter(_.toLowerCase == "information_schema").isEmpty)
     assert(!results.filter(_.toLowerCase == "mysql").isEmpty)
-    assert(!results.filter(_.toLowerCase == "performance_schema").isEmpty)
+  //  assert(!results.filter(_.toLowerCase == "performance_schema").isEmpty)
 
   }
 
@@ -360,7 +360,10 @@ class QueryTest extends BaseTest {
     val createDbSql = "create database if not exists mytest"
     qm.queryForUpdate(createDbSql).executeUpdate
 
-    val createTableSql = "create table if not exists mytest.test(x Integer)"
+    val dropTableSql = "drop table if exists mytest.test"
+    qm.queryForUpdate(dropTableSql).executeUpdate
+
+    val createTableSql = "create table mytest.test(x Integer)"
     qm.queryForUpdate(createTableSql).executeUpdate
 
     try {
