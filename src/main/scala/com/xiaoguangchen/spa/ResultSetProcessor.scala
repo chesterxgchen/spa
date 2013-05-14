@@ -5,7 +5,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala._
 import collection.mutable
 import java.util.Date
-import java.io.{IOException, ObjectInputStream, InputStream}
+import java.io.{ByteArrayInputStream, IOException, ObjectInputStream, InputStream}
 
 
 /**
@@ -30,8 +30,11 @@ trait ResultSetProcessor {
   }
 
   protected def processRow[T](rs: ResultSet, md: IndexedSeq[ColumnMetadata], rowExtractor: RowExtractor[T]): T = {
+    println(" map one row to Map")
     val rowValues = toRowMap(rs, md)
+    println(" extract map row value to proper class or value")
     val result = rowExtractor.extractRow(rowValues)
+    println(" returning result")
     result
   }
 
@@ -41,6 +44,10 @@ trait ResultSetProcessor {
   }
 
   private def getValue(rs: ResultSet, cmd: ColumnMetadata, columnOffset: Int): Any = {
+
+    if (rs.wasNull) return null
+
+    println("is closed=" + rs.isClosed)
     val value = cmd.colType match {
       case java.sql.Types.INTEGER | java.sql.Types.SMALLINT | java.sql.Types.TINYINT => rs.getInt(columnOffset)
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
@@ -55,11 +62,12 @@ trait ResultSetProcessor {
       case java.sql.Types.BLOB => rs.getBlob(columnOffset)
       case java.sql.Types.CLOB => rs.getString(columnOffset)
       case java.sql.Types.JAVA_OBJECT => rs.getObject(columnOffset)
-      case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => objectValueFromBytes(rs, columnOffset)
+    //  case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => objectValueFromBytes(rs, columnOffset)
+    //  case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => getBytes(rs.getBlob(columnOffset))
+    //    case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => objectValueFromBytes2(rs, columnOffset)
+      case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => rs.getBlob(columnOffset)
       case _ => rs.getObject(columnOffset)
     }
-
-    if (rs.wasNull) return null
 
     value
 
@@ -75,6 +83,13 @@ trait ResultSetProcessor {
 
     resultMap.toMap
   }
+
+
+  private def getBytes(blob: java.sql.Blob) = {
+  val objectIn = new ObjectInputStream(blob.getBinaryStream)
+      objectIn.readObject
+  }
+
 
   private def objectValueFromBytes(rs: ResultSet, columnOffset: Int): Any = {
     try {
@@ -97,5 +112,25 @@ trait ResultSetProcessor {
       }
     }
   }
+
+
+  private def objectValueFromBytes2(rs: ResultSet, columnOffset: Int): Any = {
+    try {
+      val value =  if (!rs.wasNull) {
+        rs.getBytes(columnOffset)
+      } else null
+
+      value
+    }
+    catch {
+      case e: IOException => {
+        throw new QueryException("read binary stream failed at column" + columnOffset + ", make sure database connection is not closed", e)
+      }
+      case e: ClassNotFoundException => {
+        throw new QueryException("read binary stream failed at column" + columnOffset + ", class not found", e)
+      }
+    }
+  }
+
 
 }

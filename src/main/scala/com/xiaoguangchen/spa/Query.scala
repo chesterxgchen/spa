@@ -29,7 +29,17 @@ trait Query[A] {
 
   def logSql(log: Boolean): Query[A]
 
-  def executeUpdate: Int
+  /**
+   * execute SQL statement, if the statement generated the new id, return the newly generated key value
+   * otherwise return the statement code
+   *
+   * here we assume that the key is Long
+   *
+   * @return 1) id value from resultset.getGeneratedKey if there are id generated;
+   *         2) the row count for SQL Data Manipulation Language (DML) statements if no generated keys
+   *         3) 0 for SQL statements that return nothing  if no generated keys
+   * */
+  def executeUpdate: Long
 
   def executeBatchUpdate: Array[Int]
 

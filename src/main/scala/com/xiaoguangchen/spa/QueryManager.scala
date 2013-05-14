@@ -30,13 +30,11 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
     query(sqlString, new ClassRowProcessor[A](resultClass), transaction,queryType)
   }
 
-  def queryForUpdate[A](sqlString: String,transaction: Transaction = null, queryType: QueryType = QueryType.PREPARED ): Query[A] = {
-    if (transaction == null) {
-        query(sqlString, null, transaction,queryType)
-    }
-    else
-      query(sqlString, null, transaction,queryType)
+  def queryForUpdate[A](sqlString: String,
+                        transaction: Transaction = null,
+                        queryType: QueryType = QueryType.PREPARED ): Query[A] = {
 
+     query(sqlString, null, transaction,queryType)
   }
 
 
@@ -47,7 +45,6 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
     new SqlQuery[A](this, sqlString, queryType, rowProcessor, transaction)
   }
 
-
   def transaction[T](transaction : Transaction = null)(f: Transaction => T):T = {
     withTransaction(transaction) { tran =>
       try {
@@ -55,6 +52,7 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
         val value = f(tran)
         tran.commit()
         value
+
       } catch {
         case e: Throwable =>
           tran.rollback()
@@ -102,7 +100,7 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
     }
     catch {
       case e: SQLException => println("failed to close Connection", e)
-      case _ =>
+      case _:Throwable =>
     }
   }
 

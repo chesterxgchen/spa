@@ -16,6 +16,7 @@ import scala.Some
 class SqlQuery[A](val queryManager: QueryManager,
                   val sql: String,
                   queryType: QueryType = QueryType.PREPARED,
+                  //genKeyColumn: String,
                   rowProcessor: RowExtractor[A],
                   transaction : Transaction ) extends Query[A] {
 
@@ -84,16 +85,18 @@ class SqlQuery[A](val queryManager: QueryManager,
     }
   }
 
-  def executeUpdate: Int = {
+  def executeUpdate: Long = {
     if (m_batch) throw new QueryException("batch mode should use executeBatchUpdate() method.")
 
-    def internalUpdate(trans: Transaction): Int = {
+    def internalUpdate(trans: Transaction): Long = {
       setTransactionIsolation(trans.connection)
       val stmt = prepareStatement(trans.connection)
       withStatement(stmt) {
         setParameters(stmt)
         if (m_logSql) logSql()
-        stmt.executeUpdate
+        val code = stmt.executeUpdate
+        val rs = stmt.getGeneratedKeys
+        if (rs.next()) rs.getLong(1) else code.toLong
       }
     }
 
@@ -109,7 +112,6 @@ class SqlQuery[A](val queryManager: QueryManager,
       }
     }
   }
-
 
   def executeBatchUpdate: Array[Int] = {
 
@@ -350,13 +352,14 @@ class SqlQuery[A](val queryManager: QueryManager,
   }
 
 
-  private def prepareStatement(connection: Connection): PreparedStatement = {
+  private def prepareStatement(connection: Connection ): PreparedStatement = {
 
     createPrepareStatement {
       parsedSql =>
         val pstmt =  this.queryType  match {
           case PREPARED => {
-            connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+            //connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+            connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
           }
 
           // not fully tested

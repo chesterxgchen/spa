@@ -1,7 +1,7 @@
 
 package com.xiaoguangchen.spa
 
-import annotation.Column
+import com.xiaoguangchen.spa.annotation.Column
 import java.sql.{DriverManager, Connection}
 import org.testng.annotations.Test
 import reflect.BeanProperty
@@ -11,6 +11,8 @@ import java.text.SimpleDateFormat
 import java.math.{MathContext, BigDecimal}
 import runtime.ScalaRunTime
 import math.BigDecimal.RoundingMode
+import com.xiaoguangchen.spa.QueryTest.BlobString
+import java.io.{DataInputStream, ByteArrayInputStream, ObjectInputStream, InputStream}
 
 
 /**
@@ -49,6 +51,9 @@ import math.BigDecimal.RoundingMode
  *
  */
 object QueryTest {
+
+
+  case class BlobString(@Column("x") x:String)
 
   class TableMetadata () {
 
@@ -112,7 +117,7 @@ object QueryTest {
   }
 
 
-  class SerializedObj(x: String, y: Date, z:Long) extends Serializable {
+  class SerializedObj(val x: String, val y: Date, val z:Long) extends Serializable {
     override def toString: String = "(" + x + "," + z + ")"
   }
 
@@ -352,6 +357,34 @@ class QueryTest extends BaseTest {
     assert(count != None && count.get == 200 )
   }
 
+
+  @Test(groups = Array("update", "query", "insert"))
+  def testInsert() {
+    val qm = QueryManager(open = getConnection)
+    val dropDbSql = "drop database if exists mytest"
+    qm.queryForUpdate(dropDbSql).executeUpdate
+    val createDbSql = "create database if not exists mytest"
+    qm.queryForUpdate(createDbSql).executeUpdate
+
+    val createTableSql = "create table if not exists mytest.test( key1 Integer primary key NOT NULL AUTO_INCREMENT, x Integer)"
+    qm.queryForUpdate(createTableSql).executeUpdate
+
+
+    val InsertSql = "insert into mytest.test(x) values (:x)"
+    val q = qm.queryForUpdate(InsertSql)
+    val newId = q.parameterByName("x", "200").executeUpdate
+    assert(newId== 1L )
+
+    val newId2 = q.parameterByName("x", "300").executeUpdate
+    assert(newId2== 2L )
+
+    val newId3 = q.parameterByName("x", "400").executeUpdate
+    assert(newId3== 3L )
+
+  }
+
+
+
   @Test(groups = Array("update", "query", "transaction"))
   def testUpdateTransaction() {
     val qm = QueryManager(open = getConnection, logConnection = true)
@@ -397,7 +430,7 @@ class QueryTest extends BaseTest {
 
   }
 
-  @Test(groups = Array("bigdecimal"))
+  @Test(groups = Array("bigdecimal","bigdecimal1"))
   def testBigDecimal() {
 
     val qm = QueryManager(open = getConnection, logConnection = true)
@@ -408,11 +441,16 @@ class QueryTest extends BaseTest {
     val createTableSql = "create table if not exists mytest.test(x Decimal(18,4))"
     qm.queryForUpdate(createTableSql).executeUpdate
 
+    var count1 = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
+    assert(count1 != None  )
+    println(" count1 = " + count1)
+    assert( count1.get.setScale(0, RoundingMode.HALF_EVEN).intValue == 0 )
+
     //note: BigDecimal must be java.math.BigDecimal not scala.bigDecimal
     try {
       qm.transaction() {transaction =>
         qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-          .parameterByName("x", new BigDecimal("1")).executeUpdate
+          .parameterByName("x",new BigDecimal("1")).executeUpdate
 
         qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
           .parameterByName("x", new BigDecimal("1")).executeUpdate
@@ -426,6 +464,7 @@ class QueryTest extends BaseTest {
     //the inserted rows should have rollback.
     var count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
     assert(count != None  )
+    println(" count = " + count)
     assert( count.get.setScale(0, RoundingMode.HALF_EVEN).intValue == 0 )
 
     //do one more times
@@ -439,11 +478,13 @@ class QueryTest extends BaseTest {
     count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
     assert(count != None && count.get.setScale(0, RoundingMode.HALF_EVEN).intValue() ==2 )
 
+
     val results = qm.queryWithClass("select *  from mytest.test", classOf[BigDecimal]).toList()
     assert(results.size == 2)
 
     assert( results.head.setScale(0, RoundingMode.HALF_EVEN).intValue == 1)
     assert(results.tail.head.setScale(1, RoundingMode.HALF_EVEN).doubleValue() == 2.0)
+
 
   }
 
@@ -524,15 +565,15 @@ class QueryTest extends BaseTest {
                .parameterByName("date",  today).toSingle()
 
       assert(formatter.format(today) == formatter.format(dt.get) )
+  }
 
-      // blob data type
-    val dropDbSql = "drop database if exists mytest"
-    qm.queryForUpdate(dropDbSql).executeUpdate
-    val createDbSql = "create database if not exists mytest"
-    qm.queryForUpdate(createDbSql).executeUpdate
 
-    val createTableSql = "create table if not exists mytest.test2(x BLOB)"
-    qm.queryForUpdate(createTableSql).executeUpdate
+  @Test(groups = Array("select", "query",  "datatype", "blob"))
+  def testBlobType2() {
+
+    prepareBlobTable()
+
+    val qm = QueryManager(open = getConnection)
 
     val s = new QueryTest.SerializedObj("hi", new Date(), 100)
     qm.queryForUpdate("insert into mytest.test2(x) values (:x)")
@@ -541,13 +582,88 @@ class QueryTest extends BaseTest {
 
     val rowProcessor = new RowExtractor[QueryTest.SerializedObj] {
       def extractRow(oneRow: Map[ColumnMetadata, Any]): QueryTest.SerializedObj = oneRow.head._2.asInstanceOf[QueryTest.SerializedObj]
+//     def extractRow(oneRow: Map[ColumnMetadata, Any]): QueryTest.SerializedObj = {
+//        val blob = oneRow.head._2.asInstanceOf[java.sql.Blob]
+//        getBytes[QueryTest.SerializedObj](blob).asInstanceOf[QueryTest.SerializedObj]
+//      }
+/*
+          def extractRow(oneRow: Map[ColumnMetadata, Any]): QueryTest.SerializedObj = {
+              val blob = oneRow.head._2.asInstanceOf[Array[Byte]]
+              getBytes[QueryTest.SerializedObj](blob).asInstanceOf[QueryTest.SerializedObj]
+            }
+*/
+
     }
 
     val blobValue = qm.query(" select x from mytest.test2 limit 1", rowProcessor).toSingle()
     assert(blobValue.get.toString == s.toString)
 
-    val blobValue2 = qm.queryWithClass(" select x from mytest.test2 limit 1", classOf[QueryTest.SerializedObj]).toSingle()
-    assert(blobValue2.get.toString == s.toString)
+    val t: QueryTest.SerializedObj = blobValue.get
+    assert(t.x == s.x)
+    assert(t.z == s.z)
+
+     val blobValue2 = qm.queryWithClass(" select x from mytest.test2 limit 1", classOf[QueryTest.SerializedObj]).toSingle()
+      assert(blobValue2.get.toString == s.toString)
+
+  }
+
+  private def getBytes[T](blob: java.sql.Blob) = {
+    val value =  if (blob != null) {
+      val is: InputStream = blob.getBinaryStream(1, blob.length())
+      val objectIn = new ObjectInputStream(is)
+      objectIn.readObject
+    } else null
+
+    if (value == null) null else value.asInstanceOf[T]
+
+  }
+
+
+
+  private def getBytes[T](buf: Array[Byte]) = {
+    val value =  if (buf != null) {
+      val objectIn = new ObjectInputStream(new ByteArrayInputStream(buf))
+      objectIn.readObject
+    } else null
+
+    if (value == null) null else value.asInstanceOf[T]
+
+  }
+
+
+  @Test(groups = Array("select", "query", "blob", "blob1"))
+  def testBlobType() {
+
+    prepareBlobTable()
+
+    val qm = QueryManager(open = getConnection)
+    qm.queryForUpdate("insert into mytest.test2(x) values (:x)")
+      .parameterByName("x", "Balabalabala")
+      .executeUpdate
+
+    val blob = qm.queryWithClass("select x from mytest.test2 limit 1 ", classOf[String]).toSingle()
+
+    println(" blob = " + blob)
+    assert(blob.get == "Balabalabala" )
+
+
+
+
+
+
+  }
+
+
+  private def prepareBlobTable() {
+    val qm = QueryManager(open = getConnection)
+    // blob data type
+    val dropDbSql = "drop database if exists mytest"
+    qm.queryForUpdate(dropDbSql).executeUpdate
+    val createDbSql = "create database if not exists mytest"
+    qm.queryForUpdate(createDbSql).executeUpdate
+
+    val createTableSql = "create table if not exists mytest.test2(x BLOB)"
+    qm.queryForUpdate(createTableSql).executeUpdate
   }
 
   @Test(groups = Array("Int-type"))

@@ -10,7 +10,8 @@ import scala.Predef.Class
 import scala.Some
 import scala.Array
 import collection.mutable
-
+import java.sql.Blob
+import java.io.{ByteArrayInputStream, ObjectInputStream, InputStream}
 
 
 /**
@@ -55,6 +56,18 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
   def extractRow(oneRow: Map[ColumnMetadata, Any]): T = {
 
 
+
+    def getBytes(buf: Array[Byte]) = {
+      println(" extract a byte array")
+      val value =  if (buf != null) {
+        val objectIn = new ObjectInputStream(new ByteArrayInputStream(buf))
+        objectIn.readObject
+      } else null
+
+      if (value == null) null else value.asInstanceOf[T]
+    }
+
+    println(" start to extract")
     try {
       require(m_resultClass != null, "result class is null")
 
@@ -63,7 +76,11 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
         val value = oneRow.head._2
         if (value == null) return null.asInstanceOf[T]
 
-        def returnValue =
+
+        println(" m_resultClass = " +  value.getClass.getSimpleName)
+        println(" value.getClass.getSimpleName = " +  value.getClass.getSimpleName)
+
+      val returnValue =
           (m_resultClass.getSimpleName, value.getClass.getSimpleName) match {
             case ("Long", "BigDecimal") => value.asInstanceOf[BigDecimal].longValue()
             case ("Double", "BigDecimal") => value.asInstanceOf[BigDecimal].doubleValue()
@@ -73,12 +90,16 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
             case ("BigDecimal", "Long") => new BigDecimal(value.asInstanceOf[Long])
             case ("BigDecimal", "Int") => new BigDecimal(value.asInstanceOf[Int])
             case ("BigDecimal", "Double") => new BigDecimal(value.asInstanceOf[Double])
+            case (_, "byte[]") => getBytes(value.asInstanceOf[Array[Byte]])
+            case (_, "Blob") => {val blob = value.asInstanceOf[Blob]; getBytes(blob.getBytes(1,blob.length.toInt)) }
+
             case _ => value
           }
 
-        return returnValue.asInstanceOf[T]
+        println(" return value = " + returnValue)
+          return returnValue.asInstanceOf[T]
       }
-
+     println(" not simple class")
       val methods = m_resultClass.getDeclaredMethods
       val fields = m_resultClass.getDeclaredFields
       val annFields = fields.filter( p => (p.getAnnotation(classOf[Column]) != null) )
@@ -98,6 +119,7 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
           throw new QueryException("failed to extract row for class: " + m_resultClass.getName + " no default constructor ")
       }
       else {
+        println(" constructing constructor")
         val ctor = consWithAnn(0).asInstanceOf[Constructor[T]]
         val args = getConstructorArgs(ctor, oneRow)
         val t= ctor.newInstance(args: _*)
@@ -123,6 +145,7 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
 
 
   //////////////////////////////////////////////////////////////////////////////////////////
+
 
   private def getConstructorArgs(ctor: Constructor[T], oneRow: Map[ColumnMetadata, Any]): Seq[AnyRef] = {
     val parAnns = ctor.getParameterAnnotations
