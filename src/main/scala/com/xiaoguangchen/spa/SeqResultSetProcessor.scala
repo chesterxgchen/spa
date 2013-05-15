@@ -36,7 +36,6 @@ class SeqResultSetProcessor extends ResultSetProcessor {
       val rowResult = processRow(rs, colMetadataList, rowExtractor)
       resultList += rowResult
     }
-    println("return list")
     resultList
   }
 }
