@@ -30,11 +30,8 @@ trait ResultSetProcessor {
   }
 
   protected def processRow[T](rs: ResultSet, md: IndexedSeq[ColumnMetadata], rowExtractor: RowExtractor[T]): T = {
-    println(" map one row to Map")
     val rowValues = toRowMap(rs, md)
-    println(" extract map row value to proper class or value")
     val result = rowExtractor.extractRow(rowValues)
-    println(" returning result")
     result
   }
 
@@ -46,8 +43,6 @@ trait ResultSetProcessor {
   private def getValue(rs: ResultSet, cmd: ColumnMetadata, columnOffset: Int): Any = {
 
     if (rs.wasNull) return null
-
-    println("is closed=" + rs.isClosed)
     val value = cmd.colType match {
       case java.sql.Types.INTEGER | java.sql.Types.SMALLINT | java.sql.Types.TINYINT => rs.getInt(columnOffset)
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
