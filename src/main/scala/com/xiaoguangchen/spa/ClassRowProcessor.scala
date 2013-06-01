@@ -73,17 +73,19 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
       if (columnCount == 1) {
         val value = oneRow.head._2
         if (value == null) return null.asInstanceOf[T]
-
       val returnValue =
           (m_resultClass.getSimpleName, value.getClass.getSimpleName) match {
-            case ("Long", "BigDecimal") => value.asInstanceOf[BigDecimal].longValue()
+            case ("Long", "BigDecimal") =>  value.asInstanceOf[BigDecimal].longValue()
             case ("Double", "BigDecimal") => value.asInstanceOf[BigDecimal].doubleValue()
             case ("int", "Long") => value.asInstanceOf[Long].toInt
             case ("Integer", "Long") => value.asInstanceOf[Long].toInt
             case ("Double", "Float") => value.asInstanceOf[Double].toFloat
-            case ("BigDecimal", "Long") => new BigDecimal(value.asInstanceOf[Long])
-            case ("BigDecimal", "Int") => new BigDecimal(value.asInstanceOf[Int])
-            case ("BigDecimal", "Double") => new BigDecimal(value.asInstanceOf[Double])
+            case ("BigDecimal", "Long") => scala.BigDecimal(new BigDecimal(value.asInstanceOf[Long]))
+            case ("BigDecimal", "Int") => scala.BigDecimal( new BigDecimal(value.asInstanceOf[Int]) )
+            case ("BigDecimal", "Double") => scala.BigDecimal( new BigDecimal(value.asInstanceOf[Double]))
+            case ("BigDecimal", "BigDecimal")  if (m_resultClass.getName != value.getClass.getName) =>  {
+                  scala.BigDecimal( value.asInstanceOf[java.math.BigDecimal])
+            }
             case (_, "byte[]") => getBytes(value.asInstanceOf[Array[Byte]])
             case (_, "Blob") => {val blob = value.asInstanceOf[Blob]; getBytes(blob.getBytes(1,blob.length.toInt)) }
 

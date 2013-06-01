@@ -8,11 +8,8 @@ import reflect.BeanProperty
 import java.util.Date
 import collection.mutable.ArrayBuffer
 import java.text.SimpleDateFormat
-import java.math.{MathContext, BigDecimal}
-import runtime.ScalaRunTime
 import math.BigDecimal.RoundingMode
-import com.xiaoguangchen.spa.QueryTest.BlobString
-import java.io.{DataInputStream, ByteArrayInputStream, ObjectInputStream, InputStream}
+import java.io.{ByteArrayInputStream, ObjectInputStream, InputStream}
 
 
 /**
@@ -444,28 +441,7 @@ class QueryTest extends BaseTest {
     var count1 = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
     assert(count1 != None  )
     println(" count1 = " + count1)
-    assert( count1.get.setScale(0, RoundingMode.HALF_EVEN).intValue == 0 )
-
-    //note: BigDecimal must be java.math.BigDecimal not scala.bigDecimal
-    try {
-      qm.transaction() {transaction =>
-        qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-          .parameterByName("x",new BigDecimal("1")).executeUpdate
-
-        qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-          .parameterByName("x", new BigDecimal("1")).executeUpdate
-        throw new Error(" let it fail during transaction")
-      }
-    }
-    catch {
-      case _:Error =>
-    }
-
-    //the inserted rows should have rollback.
-    var count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
-    assert(count != None  )
-    println(" count = " + count)
-    assert( count.get.setScale(0, RoundingMode.HALF_EVEN).intValue == 0 )
+    assert( count1.get == BigDecimal(0) )
 
     //do one more times
     qm.transaction() { transaction =>
@@ -475,16 +451,18 @@ class QueryTest extends BaseTest {
       qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
         .parameterByName("x", 2).executeUpdate
     }
-    count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
-    assert(count != None && count.get.setScale(0, RoundingMode.HALF_EVEN).intValue() ==2 )
-
+    val count = qm.queryWithClass( "select count(*) from mytest.test", classOf[BigDecimal]).toSingle()
+    assert(count != None && count.get ==BigDecimal(2) )
 
     val results = qm.queryWithClass("select *  from mytest.test", classOf[BigDecimal]).toList()
     assert(results.size == 2)
 
-    assert( results.head.setScale(0, RoundingMode.HALF_EVEN).intValue == 1)
-    assert(results.tail.head.setScale(1, RoundingMode.HALF_EVEN).doubleValue() == 2.0)
+    assert( results.head == BigDecimal(1))
+    assert(results.tail.head == BigDecimal(2))
 
+    for (s <- results) {
+       assert( s.getClass.getName == "scala.math.BigDecimal" )
+    }
 
   }
 
@@ -518,8 +496,9 @@ class QueryTest extends BaseTest {
     val qm = QueryManager(open = getConnection)
 
     val bigDecimalValue= qm.queryWithClass(" select 1.0 from dual", classOf[BigDecimal] ).toSingle()
-    val y = bigDecimalValue.get.setScale(1, java.math.RoundingMode.HALF_EVEN)
-    assert(y.doubleValue() == 1.0)
+    //val y = bigDecimalValue.get.setScale(1, java.math.RoundingMode.HALF_EVEN)
+    println(" big decimal = "  + bigDecimalValue)
+    assert(bigDecimalValue.get == BigDecimal(1.0))
 
   }
 
@@ -539,9 +518,7 @@ class QueryTest extends BaseTest {
 
 
     val bigDecimalValue= qm.queryWithClass(" select 1.0 from dual", classOf[BigDecimal] ).toSingle()
-    assert(bigDecimalValue.get.setScale(1, java.math.RoundingMode.HALF_EVEN).doubleValue() == 1.0)
-
-
+    assert(bigDecimalValue.get== BigDecimal(1.0))
 
     //date type
     val formatter = new SimpleDateFormat("yyyy-MM-dd")
@@ -720,7 +697,7 @@ class QueryTest extends BaseTest {
 
   }
 
-  @Test(groups = Array("conn", "conn3"))
+  @Test(groups = Array("conn", "conn3", "batch"))
   def testConnection3() {
 
     val qm = QueryManager(open = getConnection, logConnection = true)

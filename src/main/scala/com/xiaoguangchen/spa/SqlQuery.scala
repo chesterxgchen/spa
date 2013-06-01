@@ -11,6 +11,7 @@ import collection.mutable.ArrayBuffer
 import scala.Array
 import scala.Some
 import scala.Some
+import java.math
 
 
 class SqlQuery[A](val queryManager: QueryManager,
@@ -198,6 +199,7 @@ class SqlQuery[A](val queryManager: QueryManager,
           case t:Timestamp => new SQLParameter(t,java.sql.Types.TIMESTAMP)
           case d:Date =>      new SQLParameter(new Timestamp(d.getTime),java.sql.Types.TIMESTAMP)
           case c:Calendar =>  new SQLParameter(new Timestamp(c.getTime.getTime),java.sql.Types.TIMESTAMP)
+          case d1:scala.BigDecimal =>  new SQLParameter(new java.math.BigDecimal(d1.toString()) ,java.sql.Types.JAVA_OBJECT)
 
           case s: AnyRef=>    new SQLParameter(s.asInstanceOf[AnyRef],java.sql.Types.JAVA_OBJECT)
           case _ => throw new IllegalArgumentException(" unable to handle parameter " + param )
@@ -276,10 +278,11 @@ class SqlQuery[A](val queryManager: QueryManager,
       logOneSetParameters(m_logPosParameters, m_logNamedParameters)
     }
     else {
+      println("batch size =" + m_batchPositionedParameters.size)
       var batchCount: Int = 1
-      for (b <- m_batchLogParameters) {
+      for (b <- m_batchPositionedParameters) {
         println("\n batch  :" + batchCount + "\n")
-        logOneSetParameters(b.pos, b.named)
+        logOneSetParameters(b.posParam, m_logNamedParameters)
         batchCount += 1
       }
     }
@@ -333,7 +336,7 @@ class SqlQuery[A](val queryManager: QueryManager,
     if (m_batch) {
       val pos = m_positionedParameters
       val named = m_namedParameters
-      m_batchLogParameters ++ mutable.ListBuffer(new BatchLogParameters(pos, named))
+      m_batchLogParameters = m_batchLogParameters ++ mutable.ListBuffer(new BatchLogParameters(pos, named))
     }
 
   }
