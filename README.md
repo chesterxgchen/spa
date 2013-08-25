@@ -11,12 +11,12 @@ mapping library either. There is no special query language, joins etc, just plai
 
 The following are some of the features support by SPA:
 
-   # The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources.#
-   # flexible ways of handling results via toList, toSingle and withIterator methods
-   # Use can also customize results processing via Customized RowExtractor
-   # support batch update
-   # automatic sql logging when query failed.
-   # support transaction  -- updates withing the transaction will be commit or rollback together.
+   #### The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources.#
+   #### flexible ways of handling results via toList, toSingle and withIterator methods
+   #### Use can also customize results processing via Customized RowExtractor
+   #### support batch update
+   #### automatic sql logging when query failed.
+   #### support transaction  -- updates withing the transaction will be commit or rollback together.
 
 not supported
 
