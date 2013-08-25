@@ -22,11 +22,11 @@ trait ResultSetProcessor {
     val rsmd = resultSet.getMetaData
     val columnCount = rsmd.getColumnCount
     for (i <- 0 until columnCount)
-    yield new ColumnMetadata(rsmd.getColumnType(i + 1),
-      rsmd.getColumnName(i + 1),
-      rsmd.getColumnLabel(i + 1),
-      rsmd.getScale(i + 1),
-      rsmd.getPrecision(i + 1) )
+         yield new ColumnMetadata(i, rsmd.getColumnType(i + 1),
+            rsmd.getColumnName(i + 1),
+            rsmd.getColumnLabel(i + 1),
+            rsmd.getScale(i + 1),
+            rsmd.getPrecision(i + 1) )
   }
 
   protected def processRow[T](rs: ResultSet, md: IndexedSeq[ColumnMetadata], rowExtractor: RowExtractor[T]): T = {

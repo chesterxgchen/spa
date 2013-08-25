@@ -2,16 +2,19 @@ package com.xiaoguangchen.spa
 
 import com.xiaoguangchen.spa.annotation.Column
 import java.lang.reflect._
-import java.math.{BigDecimal, BigInteger}
-import java.util.Date
+import java.math.BigDecimal
 import scala.Predef._
-import scala.{None, AnyRef, Some}
+import scala.{None, AnyRef}
 import scala.Predef.Class
+import scala.reflect.{ClassTag}
+import scala.reflect._
+import scala.reflect.runtime.universe._
+
 import scala.Some
 import scala.Array
 import collection.mutable
 import java.sql.Blob
-import java.io.{ByteArrayInputStream, ObjectInputStream, InputStream}
+import java.io.{ByteArrayInputStream, ObjectInputStream}
 
 
 /**
@@ -23,106 +26,102 @@ import java.io.{ByteArrayInputStream, ObjectInputStream, InputStream}
 
 /**
  * Extract the class from One database row.
- * This class use reflection to populate the object instance of the class.
+ * This class use reflection to populate the object instance of the class unless it is Tuple2-9 or simple single column class.
  *
- * The class is instantiate and populated with the following ways:
- *
- * 1) use default constructor, then via setter method
- * 2) use constructor directly, if the supplied row columns are less than the constructors arguments,
- *    then the rest of the arguments must have proper values
- *
- * The setter methods are determined as the following:
- *
- *    a) the setter method with only one argument and the column matches the column label or Name.
- *    b) the setter method with only one argument and name matches the set<ColumnLabel>
- *    c) the setter method with only one argument and name matches the <ColumnLabel>_$eq
- *
-
- * The resultClass must be a
- *
- * a) regular java/scala class or
- * b) static inner java class or
- * c) a scala class in companion object
- *
- * @param resultClass --
  * @tparam T
  */
 
-class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
+class ClassRowProcessor[T: ClassTag : TypeTag ] extends RowExtractor[T] {
 
-  var m_resultClass = resultClass
+   val typeArgs = typeOf[T] match { case TypeRef(_, _, args) => args }
+   val m_resultClass =  implicitly[ClassTag[T]].runtimeClass
 
+  private def convertValue(value: Any, targetClassName: String): Any = {
+
+    (targetClassName, value.getClass.getSimpleName) match {
+      case ("Long", "BigDecimal") => value.asInstanceOf[BigDecimal].longValue()
+      case ( d1, "BigDecimal") if d1 == "Double" || d1 == "double" => value.asInstanceOf[BigDecimal].doubleValue()
+      case ( i,  "Long")       if i  == "Int"    || i  == "int"  || i == "Integer"   => value.asInstanceOf[Long].toInt
+      case ("Double", "Float") => value.asInstanceOf[Double].toFloat
+      case ("BigDecimal", "Long") => scala.BigDecimal(new BigDecimal(value.asInstanceOf[Long]))
+      case ("BigDecimal", "Int") => scala.BigDecimal(new BigDecimal(value.asInstanceOf[Int]))
+      case ("BigDecimal", "Double") => scala.BigDecimal(new BigDecimal(value.asInstanceOf[Double]))
+      case ("BigDecimal", "BigDecimal") if m_resultClass.getName != value.getClass.getName => {
+        scala.BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+      }
+      case (_, "byte[]") => getBytes(value.asInstanceOf[Array[Byte]])
+      case (_, "Blob") => {
+        val blob = value.asInstanceOf[Blob]
+        getBytes(blob.getBytes(1, blob.length.toInt))
+      }
+
+      case _ => value
+    }
+  }
+
+
+  private def getBytes(buf: Array[Byte]) = {
+    val value =  if (buf != null) {
+      val objectIn = new ObjectInputStream(new ByteArrayInputStream(buf))
+      objectIn.readObject
+    } else null
+
+    if (value == null) null else value.asInstanceOf[T]
+  }
 
   def extractRow(oneRow: Map[ColumnMetadata, Any]): T = {
 
 
+    def extractClassRow: T = {
+      val constructors = m_resultClass.getDeclaredConstructors.filter(p => p.getModifiers == Modifier.PUBLIC)
 
-    def getBytes(buf: Array[Byte]) = {
-      val value =  if (buf != null) {
-        val objectIn = new ObjectInputStream(new ByteArrayInputStream(buf))
-        objectIn.readObject
-      } else null
+      def ctorAnnFilter (c: Constructor[_]) : Boolean = {
+        !c.getParameterAnnotations.filter(p => !p.filter(a => a.annotationType() eq classOf[Column]).isEmpty).isEmpty
+      }
 
-      if (value == null) null else value.asInstanceOf[T]
-    }
+      val consWithAnn = constructors.filter(c => ctorAnnFilter(c))
+      if (!consWithAnn.isEmpty) {
+        val ctor = consWithAnn(0).asInstanceOf[Constructor[T]]
+        val args = getConstructorArgs(ctor, oneRow)
+        ctor.newInstance(args: _*)
+      }
+      else
+        throw new QueryException("failed to extract row for class: " + m_resultClass.getName)
+   }
+
 
     try {
       require(m_resultClass != null, "result class is null")
-
       val columnCount = oneRow.size
-      if (columnCount == 1) {
-        val value = oneRow.head._2
-        if (value == null) return null.asInstanceOf[T]
-      val returnValue =
-          (m_resultClass.getSimpleName, value.getClass.getSimpleName) match {
-            case ("Long", "BigDecimal") =>  value.asInstanceOf[BigDecimal].longValue()
-            case ("Double", "BigDecimal") => value.asInstanceOf[BigDecimal].doubleValue()
-            case ("int", "Long") => value.asInstanceOf[Long].toInt
-            case ("Integer", "Long") => value.asInstanceOf[Long].toInt
-            case ("Double", "Float") => value.asInstanceOf[Double].toFloat
-            case ("BigDecimal", "Long") => scala.BigDecimal(new BigDecimal(value.asInstanceOf[Long]))
-            case ("BigDecimal", "Int") => scala.BigDecimal( new BigDecimal(value.asInstanceOf[Int]) )
-            case ("BigDecimal", "Double") => scala.BigDecimal( new BigDecimal(value.asInstanceOf[Double]))
-            case ("BigDecimal", "BigDecimal")  if (m_resultClass.getName != value.getClass.getName) =>  {
-                  scala.BigDecimal( value.asInstanceOf[java.math.BigDecimal])
-            }
-            case (_, "byte[]") => getBytes(value.asInstanceOf[Array[Byte]])
-            case (_, "Blob") => {val blob = value.asInstanceOf[Blob]; getBytes(blob.getBytes(1,blob.length.toInt)) }
 
-            case _ => value
-          }
-          return returnValue.asInstanceOf[T]
-      }
-      val methods = m_resultClass.getDeclaredMethods
-      val fields = m_resultClass.getDeclaredFields
-      val annFields = fields.filter( p => (p.getAnnotation(classOf[Column]) != null) )
+      columnCount match {
 
-      val constructors = m_resultClass.getDeclaredConstructors.filter(p =>p.getModifiers == Modifier.PUBLIC)
-      val consWithAnn = constructors.filter (c => (!c.getParameterAnnotations.filter( p => !p.filter( a => a.annotationType() eq classOf[Column]).isEmpty ).isEmpty))
+        case 1 =>
+          val value = oneRow.head._2
+          if (value == null) return null.asInstanceOf[T]
 
-      if (consWithAnn.isEmpty) { // no parameters with Column Annotation
+          val returnValue = convertValue(value,m_resultClass.getSimpleName)
+          returnValue.asInstanceOf[T]
 
-        val defaultCtrs = constructors.filter(p => p.getParameterTypes.size == 0)
-        if (!defaultCtrs.isEmpty) {
-          val t = m_resultClass.newInstance
-          setValues(oneRow, methods, annFields, t)
-          return t
-        }
-        else
-          throw new QueryException("failed to extract row for class: " + m_resultClass.getName + " no default constructor ")
-      }
-      else {
-        val ctor = consWithAnn(0).asInstanceOf[Constructor[T]]
-        val args = getConstructorArgs(ctor, oneRow)
-        val t= ctor.newInstance(args: _*)
-        val setters = getSetterMethods(oneRow, methods, annFields)
-        for ((md, m) <- setters) setValue(t, m, oneRow.get(md).get)
+        case n if n == typeArgs.size =>      //tupleN
+         val values = oneRow.map( m=> m._1.colPos ->  convertValue(m._2, typeArgs(m._1.colPos).toString)   )
+         val result = m_resultClass.getSimpleName match {
+           case "Tuple2"  => Tuple2(values.get(0).get, values.get(1).get)
+           case "Tuple3"  => Tuple3(values.get(0).get, values.get(1).get,values.get(2).get)
+           case "Tuple4"  => Tuple4(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get)
+           case "Tuple5"  => Tuple5(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get, values.get(4).get)
+           case "Tuple6"  => Tuple6(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get,values.get(4).get, values.get(5).get)
+           case "Tuple7"  => Tuple7(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get,values.get(4).get, values.get(5).get,values.get(6).get)
+           case "Tuple8"  => Tuple8(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get,values.get(4).get, values.get(5).get,values.get(6).get,values.get(7).get)
+           case "Tuple9"  => Tuple9(values.get(0).get, values.get(1).get,values.get(2).get,values.get(3).get,values.get(4).get, values.get(5).get,values.get(6).get,values.get(7).get,values.get(8).get)
+           case _  =>  extractClassRow
+         }
 
-        return t
+         result.asInstanceOf[T]
 
+        case _ => extractClassRow
       }
 
-      throw new QueryException("failed to extract row for class: " + m_resultClass.getName)
     }
     catch {
       case e: InstantiationException => {
@@ -141,94 +140,30 @@ class ClassRowProcessor[T] (resultClass: Class[T]) extends RowExtractor[T] {
 
   private def getConstructorArgs(ctor: Constructor[T], oneRow: Map[ColumnMetadata, Any]): Seq[AnyRef] = {
     val parAnns = ctor.getParameterAnnotations
+    val parTypes =  ctor.getParameterTypes
+    val parInfos = parAnns zip parTypes
+
     val size = parAnns.size
     val args = mutable.ListBuffer.empty[AnyRef]
 
-
-    for (i <- 0 until size; annArray = parAnns(i)) {
+    for (i <- 0 until size; infoArray = parInfos(i); annArray = infoArray._1; parType = infoArray._2) {
       val colAnns = annArray.filter( a => (a.annotationType() eq classOf[Column]))
       if (colAnns.isEmpty) {
         args += null
       }
       else {
         val ann = colAnns(0).asInstanceOf[Column]
-        for ((md, value ) <- oneRow; if (ann.value().equals(md.colName) || ann.value.equals(md.colLabel)) )
-          args += (if (value == null || value == None) null else value.asInstanceOf[AnyRef])
+        val tName = parType.getSimpleName
+        for ((md, value ) <- oneRow; if (ann.value().equals(md.colName) || ann.value.equals(md.colLabel)) ) {
+          args += (if (value == null || value == None) null else convertValue(value, tName).asInstanceOf[AnyRef])
+        }
+
       }
     }
-
 
     args
-
   }
 
-  private def setValues(oneRow: Map[ColumnMetadata, Any], methods: Array[Method], annFields: Array[Field], t: T) {
-    for ((md, value) <- oneRow ) {
-      val setter = getSetterMethod(methods, annFields, md)
-      setter match {
-        case Some(m) => setValue(t, m, value)
-        case None => throw new QueryException("There is no setter or Column annotation for Column " + md.colName + " or alias " + md.colLabel + " in class " + m_resultClass.getName)
-      }
-    }
-  }
-
-  private def getSetterMethods(oneRow:    Map[ColumnMetadata, Any],
-                               methods:   Array[Method],
-                               annFields: Array[Field]): mutable.Map[ColumnMetadata, Method] = {
-    val results = mutable.Map[ColumnMetadata, Method]()
-    for ((md, value) <- oneRow ) {
-         val setter = getSetterMethod(methods, annFields, md)
-         if (setter != None) results += (md -> setter.get)
-    }
-
-    results
-  }
-
-  private def getSetterMethod(methods: Array[Method], annFields: Array[Field], md: ColumnMetadata ): Option[Method] = {
-
-    val am = methods.filter(m =>
-      ( m.getAnnotation(classOf[Column]) != null &&
-        (m.getAnnotation(classOf[Column]).value().equalsIgnoreCase(md.colName) ||
-          m.getAnnotation(classOf[Column]).value().equalsIgnoreCase(md.colLabel)) &&
-        m.getParameterTypes.length == 1)
-    )
-
-    if (!am.isEmpty) return Some(am(0))
-
-    // no setter method with the Column annotation
-    // check if there is a setter method for the corresponding annotated field
-    val af = annFields.filter( f => ( f.getAnnotation(classOf[Column]).value().equalsIgnoreCase(md.colName) ||
-                               f.getAnnotation(classOf[Column]).value().equalsIgnoreCase(md.colLabel) ))
-
-    if (!af.isEmpty) {
-      val setters = methods.filter(m => ( m.getName.equalsIgnoreCase("set" + af(0).getName) ||
-        m.getName.equalsIgnoreCase(af(0).getName + "_$eq") ) &&
-        m.getParameterTypes.length == 1)
-
-      if (!setters.isEmpty) Some(setters(0)) else None
-    }  else {
-      val setters = methods.filter(m => m.getName.equalsIgnoreCase("set" + md.colLabel))
-      if (!setters.isEmpty) Some(setters(0)) else None
-    }
-
-  }
-
-  private def setValue(t :T, setter: Method, value: Any) {
-    try {
-      setter.invoke(t, value.asInstanceOf[AnyRef])
-    }
-    catch {
-      case e: IllegalAccessException => {
-        throw new QueryException("Failed to access method " + setter.getName + " value = " + value, e)
-      }
-      case e: IllegalArgumentException => {
-        throw new QueryException("Failed to invoke method " + setter.getName + " value = " + value, e)
-      }
-      case e: InvocationTargetException => {
-        throw new QueryException("Failed to invoke method " + setter.getName + " value = " + value, e)
-      }
-    }
-  }
 
 }
 

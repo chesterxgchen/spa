@@ -8,19 +8,33 @@ import java.sql.ResultSet
   */
 class IteratorProcessor[A](rs: ResultSet,rowExtractor:RowExtractor[A])
   extends ResultSetProcessor {
+  val colMetadataList = readResultSetMetadata(rs)
 
-  def toIterator: QueryIterator[A] = new QueryIterator[A] {
-    val colMetadataList = readResultSetMetadata(rs)
+  def toIterator: Iterator[Option[A]] = new Iterator[Option[A]] {
+
+    //fixme: can we avoid var
+    var hasNextState = true
     def next(): Option[A] = {
       if (rs.next()) {
+        hasNextState = true
         val rowResult = processRow(rs, colMetadataList, rowExtractor)
-        Some(rowResult)
+        if (rowResult == null) None else Some(rowResult)
       }
-      else
+      else {
+        hasNextState = false
         None
+      }
+
+    }
+
+    def hasNext: Boolean = {
+       if (hasNextState) {
+         hasNextState = rs.next()
+         rs.previous() //move the cursor back
+       }
+      hasNextState
     }
   }
-
 
 
 }

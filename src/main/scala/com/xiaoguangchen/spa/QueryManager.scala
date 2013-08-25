@@ -1,51 +1,61 @@
 package com.xiaoguangchen.spa
 
+import java.sql.{DriverManager, SQLException, Connection}
+
 /**
- * Chester Chen (chesterxgchen@yahoo.com)
- * User: Chester Chen
- * Date: 12/25/12
- * Time: 5:14 AM
- *
+ * User: Chester Chen (chesterxgchen@yahoo.com)
+ * Date: 7/14/13
+
  */
-
-import java.sql.{SQLException, Connection}
-import scala.Predef._
-import com.xiaoguangchen.spa.QueryType._
-
 
 object QueryManager {
 
-  def apply(open: => Connection, logConnection:Boolean= false): QueryManager = {
+
+  def getConnection(driverName: String, url: String, userName:String, password:String): Option[Connection] = {
+    try {
+      Class.forName(driverName).newInstance()
+      val conn = DriverManager.getConnection(url, userName, password)
+      Some(conn)
+    }
+    catch {
+      case ex:Throwable => {
+        ex.printStackTrace()
+        None
+      }
+    }
+  }
+
+
+  def apply(open: => Option[Connection], logConnection:Boolean= false): QueryManager = {
     new QueryManager(open, logConnection)
   }
 
 }
 
-class QueryManager (open: => Connection, logConnection:Boolean) {
 
-  def queryWithClass[A](sqlString:   String,
-                        resultClass: Class[A],
-                        transaction: Transaction = null,
-                        queryType:   QueryType = QueryType.PREPARED): Query[A] = {
-    query(sqlString, new ClassRowProcessor[A](resultClass), transaction,queryType)
-  }
+class QueryManager (open: => Option[Connection], logConnection:Boolean) {
 
-  def queryForUpdate[A](sqlString: String,
-                        transaction: Transaction = null,
-                        queryType: QueryType = QueryType.PREPARED ): Query[A] = {
-
-     query(sqlString, null, transaction,queryType)
+  def selectQuery(parsedSql:ParsedSql,
+                  rowProcessor: Option[RowExtractor[_]] = None)
+                 (implicit trans : Option[Transaction] = None): SelectQuery = {
+       new SelectQuery(this, parsedSql)(rowProcessor)(trans)
   }
 
 
-  def query[A](sqlString:   String,
-               rowProcessor: RowExtractor[A],
-               transaction: Transaction = null,
-               queryType:QueryType = QueryType.PREPARED): Query[A] = {
-    new SqlQuery[A](this, sqlString, queryType, rowProcessor, transaction)
+  def updateQuery(parsedSql:ParsedSql)
+                 (implicit trans : Option[Transaction] = None): UpdateQuery = {
+    new UpdateQuery(this, parsedSql)(trans)
   }
 
-  def transaction[T](transaction : Transaction = null)(f: Transaction => T):T = {
+  def batchUpdateQuery(parsedSql:ParsedSql)
+                       (implicit trans : Option[Transaction] = None): BatchUpdateQuery = {
+    new BatchUpdateQuery(this, parsedSql)(trans)
+  }
+
+
+
+
+  def transaction[T](transaction : Option[Transaction] = None)(f: Transaction => T):T = {
     withTransaction(transaction) { tran =>
       try {
         tran.begin()
@@ -64,9 +74,9 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
 
   /////////////////////////////////////////////////////////////////
 
-  protected[spa]  def withConnection[A](conn : Connection) (f: Connection => A): A = {
-    val connection = if(conn == null) open else conn
-    if (logConnection && conn == null) println("Database connection established")
+  protected[spa]  def withConnection[A](conn : Option[Connection]) (f: Option[Connection] => A): A = {
+    val connection = if(conn.isDefined) conn else open
+    if (logConnection && conn.isEmpty) println("Database connection established")
 
     checkConnection(connection)
     try {
@@ -76,25 +86,25 @@ class QueryManager (open: => Connection, logConnection:Boolean) {
     }
   }
 
-  private def withTransaction[A](transaction : Transaction) (f: Transaction => A):A = {
-    val conn = if (transaction == null) null else transaction.connection
-    withConnection(conn) { connection =>
-      if (transaction == null)
-        f(new Transaction(connection))
-      else
-        f(transaction)
+  private def withTransaction[A](transaction : Option[Transaction]) (f: Transaction => A):A = {
+    val conn = if (transaction.isDefined) Some(transaction.get.connection) else None
+
+    withConnection(conn) { connection: Option[Connection] =>
+      val trans = transaction.getOrElse(new Transaction(connection.get))
+      f(trans)
     }
   }
 
 
-  private def checkConnection(connection: Connection) {
-    require(connection != null && !connection.isClosed)
+  private def checkConnection(connection: Option[Connection]) {
+    require(connection.isDefined)
+    require(!connection.get.isClosed)
   }
 
-  private def close(conn:Connection ) {
+  private def close(conn:Option[Connection] ) {
     try {
-      if (conn != null && !conn.isClosed)  {
-        conn.close()
+      if (conn.isDefined && !conn.get.isClosed)  {
+        conn.get.close()
         if (logConnection) println("database connection closed!")
       }
     }
