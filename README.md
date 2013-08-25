@@ -1,40 +1,30 @@
-spa
+SPA (or spa)
 ===
 
 spa -- Scala Persistence API, a scala JDBC wrapper
 
 Chester Chen
 
-Spa is a JDBC wrapper to make query database easier. It is not Object-Relation mapping library.
-There is no special query language, joins etc, just native SQL.
 
-The spa with close the connection/statement/resultSet without user to worry about the leaking of resources.
+SPA is a JDBC wrapper to make query database easier. It is not Object-Relation mapping library. It's not a Function-Relation
+mapping library either. There is no special query language, joins etc, just plain native SQL. SQL is enough.
 
-The following are some of the features support by spa:
+The following are some of the features support by SPA:
 
-    -- named argument, we can named each argument, and one can set parameter by name.
-    -- auto release resources (connection, statement, and resultSet)
-    -- allows one to specify the query isolation level and fetch size
-    -- populate the user defined class instance with results queried from database via
-       annotations and convention.
-    -- flexible ways of handling results via toList, toSingle and withIterator methods
-    -- Use can also customize results processing via Customized RowExtractor
-    -- support batch update
-    -- automatic sql logging when query failed.
-    -- support transaction  -- updates withing the transaction will be commit or rollback together.
+   # The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources.#
+   # flexible ways of handling results via toList, toSingle and withIterator methods
+   # Use can also customize results processing via Customized RowExtractor
+   # support batch update
+   # automatic sql logging when query failed.
+   # support transaction  -- updates withing the transaction will be commit or rollback together.
 
 not supported
 
-    -- Store Procedure call
-
-The store procedure might be added when needs arise.
+    -- Store Procedure call, the store procedure might be added when needs arise.
 
 not intend to support
 
     -- connection Pool
-
-     
-     
 
 
 <h3>
