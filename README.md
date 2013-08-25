@@ -1,7 +1,7 @@
-SPA (or spa)
+SPA 
 ===
 
-spa -- Scala Persistence API, a scala JDBC wrapper
+SPA or spa -- Scala Persistence API, a scala JDBC wrapper
 
 Chester Chen
 
@@ -57,103 +57,93 @@ The 0.2 version requires scala 2.10. The Scala-2.10 features such as string inte
 
 ## Usage Examples
 
-The following examples will use mySQL database root user
-and information_schema database.
-<h4>
-Select a Single String value
-</h4>
-<pre>
+In the following, I am going to use the same example other libraries with Coffee. 
+I also uses the existing mySQL database schema tables. 
 
-def testSelectSingle() {
+
+
+
+
+### Select Query features
+
+#### Select Single Value
+
+```   
+   def getConnection : Connection = ...
 
    val qm = QueryManager(open = getConnection )
+   
+   val table = "dummy"
+   
+   val parsedSql = sql"select count(*) from information_schema.tables where table_name=$table"
 
-   val sqlString: String = "select table_name
-                            from information_schema.tables
-                            where table_name = ?"
-
-   val result = qm.queryWithClass(sqlString, classOf[String])
-                  .parameterByPos(1, "Tables")
-                  .toSingle()
-
-   assert(result != None)
-   assert(result.get.equalsIgnoreCase("TABLES"))
- }
-
-</pre>
-
-In this example, the getConnection() wil return the Connection. The call-by-name argument
-open is used. The QueryManager usages queryWithClass to create a query by specify SQL and
-String class. the toSingle() returns the result Option[String]. The parameter is set by position.
-
-Another example, return Long value
-<pre>
- def testSelectSingleValue() {
-
+   val count = qm.selectQuery(parsedSql).toSingle[Int]
+   
+```   
+ In above example, getConnection is function that returns JDBC connection. I created a QueryManager instance with the call-by-name argument
+open.
+ 
+ The sql"..."  is Scala 2.10 string interpolation which parsed the SQL syntax and associated parameter "table", 
+ 
+ the query returns a single Option[Int] value and assign value to count variable. 
+ 
+ The SQL query against mySQL "information_schema" database's "tables" Table and check if count for table named "dummy". 
+ 
+ 
+ Here is another example, return Long value
+```
     val qm = QueryManager(open = getConnection )
 
-    val sqlString = "select count(*) from information_schema.tables "
+    val result = qm.selectQuery(sql"select count(*) from information_schema.tables ").toSingle[Long]
+```
+ 
+####Return a list of values
 
-    val result = qm.queryWithClass(sqlString, classOf[Long]).toSingle()
+```
+      val parsedSql = sql"select table_name from information_schema.tables"
+      val r = qm.selectQuery(parsedSql).toList[String]
+```
 
-    assert(result != None)
-    assert(result.get > 0)
-  }
+toList() will return a list of queried values. Here above examples returns all the table names from the mySQL information_schema.tables. 
 
-</pre>
-<h4>
-Named Argument
-</h4>
+####Return a list of tuples
+```
+        val qm = QueryManager(open = getMySQLConnection)
+        val tuple2Value = qm.selectQuery(sql" select 1, '2' from dual").toSingle[(Int, String)]
+        assert(tuple2Value.get === (1, "2"))
 
- Look the same example in #1, if we change the SQL
-<pre><code>
-    val sqlString: String = " select table_name " +
-                            " from information_schema.tables " +
-                            " where table_name = :tableName "
+        val date = new Date()
+        val formatter = new SimpleDateFormat("yyyy-MM-dd")
+        val tuple3Value= qm.selectQuery(sql"select 1.0, '2', now() from dual").toSingle[(Double, String, Date)]
+        assert(tuple3Value != None)
 
-    val result = qm.queryWithClass(sqlString, classOf[String])
-                   .parameterByName("tableName", "Tables")
-                   .toSingle()
- </code></pre>
- then we can use the named argument. The benefits of the named-argument not only
- limited to using easy to remember names to identify the argument, but also avoid
- repeated place the same argument at different positions.
+        val (x,y,z) = tuple3Value.get
+        assert((x,y) === (1.0, "2"))
+        assert( formatter.format(z) === formatter.format(date))
 
- For example,  if the SQL
+        val tuple4Value = qm.selectQuery(sql" select 1,2,3,4  from dual").toSingle[(Int,Int, Int,Int   )]
+        assert(tuple4Value.get === ( 1,2,3,4 ))
 
-     select user_name from user_table
-     where login = ? and exist (select id from user_priv where user_login = ?)
+        val tuple5Value = qm.selectQuery(sql" select 1,2,3,4,5   from dual").toSingle[(Int, Int, Int,Int, Int )]
+        assert(tuple5Value.get === ( 1,2,3,4,5  ))
 
- I just made-up these tables to illustrate a point, so don't waste time if these design of the tables
- make sense or not.
+        val tuple6Value = qm.selectQuery(sql" select 1,2,3,4,5,6  from dual").toSingle[(Int, Int, Int,Int, Int, Int  )]
+        assert(tuple6Value.get === ( 1,2,3,4,5,6))
 
- In this case, "login" appears in both where clause and sub-query where clause.
- so user would need to do something like this if using setParameterByPos.
+        val tuple7Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7  from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int )]
+        assert(tuple7Value.get === ( 1,2,3,4,5,6,7))
 
-    .parameterByPos(1, "mylogin")
-    .parameterByPos(2, "mylogin")
+        val tuple8Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8  from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int )]
+        assert(tuple8Value.get === ( 1,2,3,4,5,6,7,8 ))
 
- If I re-write the query with named arguments,
+        val tuple9Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8,9 from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int, Int )]
+        assert(tuple9Value.get === ( 1,2,3,4,5,6,7,8,9))
+```
 
-      select user_name from user_table
-      where login = :login and exist (select id from user_priv where user_login = :login)
+up-to-9 tuples are built-in with SPA. I think if there are more than 9, you could consider using a customized class structure. 
+   
 
-then I only need to call the parameterByName once:
 
-          .parameterByName("login", "mylogin")
-
-<h4>
-Return a list of values
-</h4>
-    // example 1
-    val results = qm.queryWithClass("show databases", classOf[String])
-                    .toList()
-
-    //example 2 with specified fetch size
-    val sqlString = "select table_name from information_schema.tables limit 10, 20"
-    val results = qm.queryWithClass(sqlString, classOf[String]).fetchSize(5).toList()
-
-<h4>
 Customized classes
 </h4>
 
