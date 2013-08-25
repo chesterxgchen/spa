@@ -513,5 +513,8 @@ Logging
 * The customized class, the annotations on Field, and setter methods are removed to discourage mutable field/method. The SPA 2.0 now 
 only supports constructor parameter annotation. 
 
+* Named argument feature is removed. This is consequences of the removing mutable variables. For most of the query, this is not needed anymore. 
+  but for batch query, this is going backward. But I think this is still a good trade off. 
+
 
 
