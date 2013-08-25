@@ -11,52 +11,51 @@ mapping library either. There is no special query language, joins etc, just plai
 
 The following are some of the features support by SPA:
 
-   #### The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources.#
-   #### flexible ways of handling results via toList, toSingle and withIterator methods
-   #### Use can also customize results processing via Customized RowExtractor
-   #### support batch update
-   #### automatic sql logging when query failed.
-   #### support transaction  -- updates withing the transaction will be commit or rollback together.
+
+
+* The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources. 
+* flexible ways of handling results via toList, toSingle and withIterator methods
+* Use can also customize results processing via Customized RowExtractor
+* support batch update
+* automatic sql logging when query failed.
+* support transaction  -- updates withing the transaction will be commit or rollback together.
 
 not supported
 
-    -- Store Procedure call, the store procedure might be added when needs arise.
+* Store Procedure call, the store procedure might be added when needs arise.
 
 not intend to support
 
-    -- connection Pool
+* connection Pool
 
 
-<h3>
-Background
-</h3>
 
-This work is inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
+## Background
+
+This work was originally inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
 The original JPA doesn't support batch update, iterator, transaction and other features in SPA. The transaction related feature is inspired by Querulous. The transaction construct is borrowed from there.
+The latest changes (0.2, 0.1 was never officially released) removed the mutable setters APIs from Query, the new API is more functional oriented than the 0.1 version. 
 
-Use at your own risk
+### Use at your own risk
 
-I have used this library for my own projects, mostly small projects. Therefore use at your own risk.
+Use at your own risk. I have used this library for my own projects. 
 
-<h3>
-License
-</h3>
+
+## License
 
 The project is under Apache License
 
-<h3>
-Build Scripts
-</h3>
-   The project has both sbt build and ant+ ivy build scripts. I am using this project to experiment the
-   sbt build. But also want to have the Ant so I can get things done quickly.
-   
-<h3>
-Test Framework
-</h3>
-   The project uses TestNG framework.
-<h3>
-Usage Examples
-</h3>
+
+## Requirements
+
+The 0.2 version requires scala 2.10. The Scala-2.10 features such as string interpolation and implicit class are used. 
+
+
+
+
+
+
+## Usage Examples
 
 The following examples will use mySQL database root user
 and information_schema database.
@@ -499,3 +498,20 @@ Logging
 
      
      
+     
+## Changes from 0.1 version
+
+* Major API changes: the setParameterByName(), setParameterByPos() are removed. These mutable APIs are replaced with immutable APIs
+  The QueryManager's API also changed querys into selectQuery, UpdateQuery, BatchUpdateQuiers  
+
+* Implementation Changes: try to remove all the mutable variables if possible. There are still some mutable variable in BatchQuery
+
+* QueryIterator is replaced by Scala Iterator trait, so we can leverage all power of scala.
+
+* The SPA now has built-in support for tuple results. 
+
+* The customized class, the annotations on Field, and setter methods are removed to discourage mutable field/method. The SPA 2.0 now 
+only supports constructor parameter annotation. 
+
+
+
