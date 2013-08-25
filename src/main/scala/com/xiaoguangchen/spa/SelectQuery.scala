@@ -79,7 +79,7 @@ class SelectQuery(queryManager  : QueryManager,
     def innerWithIterator(trans: Transaction) =
       withQuery(trans) {  rs =>
         val processor = new IteratorProcessor[A](rs, extractor)
-        f(processor.toIterator2)
+        f(processor.toIterator)
       }
 
     transaction match {
