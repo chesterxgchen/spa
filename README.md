@@ -1,7 +1,7 @@
-SPA (or spa)
+SPA 
 ===
 
-spa -- Scala Persistence API, a scala JDBC wrapper
+SPA or spa -- Scala Persistence API, a scala JDBC wrapper
 
 Chester Chen
 
@@ -11,450 +11,383 @@ mapping library either. There is no special query language, joins etc, just plai
 
 The following are some of the features support by SPA:
 
-   #### The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources.#
-   #### flexible ways of handling results via toList, toSingle and withIterator methods
-   #### Use can also customize results processing via Customized RowExtractor
-   #### support batch update
-   #### automatic sql logging when query failed.
-   #### support transaction  -- updates withing the transaction will be commit or rollback together.
+
+
+* The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources. 
+* flexible ways of handling results via toList, toSingle and withIterator methods
+* Use can also customize results processing via Customized RowExtractor
+* support batch update
+* automatic sql logging when query failed.
+* support transaction  -- updates withing the transaction will be commit or rollback together.
 
 not supported
 
-    -- Store Procedure call, the store procedure might be added when needs arise.
+* Store Procedure call, the store procedure might be added when needs arise.
 
 not intend to support
 
-    -- connection Pool
+* connection Pool
 
 
-<h3>
-Background
-</h3>
 
-This work is inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
+## Background
+
+This work was originally inspired by the JPA (java persistence api) native query, which has the ability to select database results by simply pass the class and native SQL.
 The original JPA doesn't support batch update, iterator, transaction and other features in SPA. The transaction related feature is inspired by Querulous. The transaction construct is borrowed from there.
+The latest changes (0.2, 0.1 was never officially released) removed the mutable setters APIs from Query, the new API is more functional oriented than the 0.1 version. 
 
-Use at your own risk
+### Use at your own risk
 
-I have used this library for my own projects, mostly small projects. Therefore use at your own risk.
+Use at your own risk. I have used this library for my own projects. 
 
-<h3>
-License
-</h3>
+
+## License
 
 The project is under Apache License
 
-<h3>
-Build Scripts
-</h3>
-   The project has both sbt build and ant+ ivy build scripts. I am using this project to experiment the
-   sbt build. But also want to have the Ant so I can get things done quickly.
-   
-<h3>
-Test Framework
-</h3>
-   The project uses TestNG framework.
-<h3>
-Usage Examples
-</h3>
 
-The following examples will use mySQL database root user
-and information_schema database.
-<h4>
-Select a Single String value
-</h4>
-<pre>
+## Requirements
 
-def testSelectSingle() {
+The 0.2 version requires scala 2.10. The Scala-2.10 features such as string interpolation, TypeTag, ClassTag and implicit class are used. 
+
+
+
+
+
+
+## Usage Examples
+
+In the following, I am going to use the same example other libraries with Coffee. 
+I also uses the existing mySQL database schema tables. 
+
+
+
+
+
+### Select Query features
+
+#### Select Single Value
+
+```   
+   def getConnection : Connection = ...
 
    val qm = QueryManager(open = getConnection )
+   
+   val table = "dummy"
+   
+   val parsedSql = sql"select count(*) from information_schema.tables where table_name=$table"
 
-   val sqlString: String = "select table_name
-                            from information_schema.tables
-                            where table_name = ?"
-
-   val result = qm.queryWithClass(sqlString, classOf[String])
-                  .parameterByPos(1, "Tables")
-                  .toSingle()
-
-   assert(result != None)
-   assert(result.get.equalsIgnoreCase("TABLES"))
- }
-
-</pre>
-
-In this example, the getConnection() wil return the Connection. The call-by-name argument
-open is used. The QueryManager usages queryWithClass to create a query by specify SQL and
-String class. the toSingle() returns the result Option[String]. The parameter is set by position.
-
-Another example, return Long value
-<pre>
- def testSelectSingleValue() {
-
+   val count = qm.selectQuery(parsedSql).toSingle[Int]
+   
+```   
+ In above example, getConnection is function that returns JDBC connection. I created a QueryManager instance with the call-by-name argument
+open.
+ 
+ The sql"..."  is Scala 2.10 string interpolation which parsed the SQL syntax and associated parameter "table", 
+ 
+ the query returns a single Option[Int] value and assign value to count variable. 
+ 
+ The SQL query against mySQL "information_schema" database's "tables" Table and check if count for table named "dummy". 
+ 
+ 
+ Here is another example, return Long value
+```
     val qm = QueryManager(open = getConnection )
 
-    val sqlString = "select count(*) from information_schema.tables "
+    val result = qm.selectQuery(sql"select count(*) from information_schema.tables ").toSingle[Long]
+```
+ 
+#### Return a list of values
 
-    val result = qm.queryWithClass(sqlString, classOf[Long]).toSingle()
+```
+      val parsedSql = sql"select table_name from information_schema.tables"
+      val r = qm.selectQuery(parsedSql).toList[String]
+```
 
-    assert(result != None)
-    assert(result.get > 0)
-  }
+toList() will return a list of queried values. Here above examples returns all the table names from the mySQL information_schema.tables. 
 
-</pre>
-<h4>
-Named Argument
-</h4>
+#### Return tuples
+```
+        val qm = QueryManager(open = getMySQLConnection)
+        val tuple2Value = qm.selectQuery(sql" select 1, '2' from dual").toSingle[(Int, String)]
+        assert(tuple2Value.get === (1, "2"))
 
- Look the same example in #1, if we change the SQL
-<pre><code>
-    val sqlString: String = " select table_name " +
-                            " from information_schema.tables " +
-                            " where table_name = :tableName "
+        val date = new Date()
+        val formatter = new SimpleDateFormat("yyyy-MM-dd")
+        val tuple3Value= qm.selectQuery(sql"select 1.0, '2', now() from dual").toSingle[(Double, String, Date)]
+        assert(tuple3Value != None)
 
-    val result = qm.queryWithClass(sqlString, classOf[String])
-                   .parameterByName("tableName", "Tables")
-                   .toSingle()
- </code></pre>
- then we can use the named argument. The benefits of the named-argument not only
- limited to using easy to remember names to identify the argument, but also avoid
- repeated place the same argument at different positions.
+        val (x,y,z) = tuple3Value.get
+        assert((x,y) === (1.0, "2"))
+        assert( formatter.format(z) === formatter.format(date))
 
- For example,  if the SQL
+        val tuple4Value = qm.selectQuery(sql" select 1,2,3,4  from dual").toSingle[(Int,Int, Int,Int   )]
+        assert(tuple4Value.get === ( 1,2,3,4 ))
 
-     select user_name from user_table
-     where login = ? and exist (select id from user_priv where user_login = ?)
+        val tuple5Value = qm.selectQuery(sql" select 1,2,3,4,5   from dual").toSingle[(Int, Int, Int,Int, Int )]
+        assert(tuple5Value.get === ( 1,2,3,4,5  ))
 
- I just made-up these tables to illustrate a point, so don't waste time if these design of the tables
- make sense or not.
+        val tuple6Value = qm.selectQuery(sql" select 1,2,3,4,5,6  from dual").toSingle[(Int, Int, Int,Int, Int, Int  )]
+        assert(tuple6Value.get === ( 1,2,3,4,5,6))
 
- In this case, "login" appears in both where clause and sub-query where clause.
- so user would need to do something like this if using setParameterByPos.
+        val tuple7Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7  from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int )]
+        assert(tuple7Value.get === ( 1,2,3,4,5,6,7))
 
-    .parameterByPos(1, "mylogin")
-    .parameterByPos(2, "mylogin")
+        val tuple8Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8  from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int )]
+        assert(tuple8Value.get === ( 1,2,3,4,5,6,7,8 ))
 
- If I re-write the query with named arguments,
+        val tuple9Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8,9 from dual").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int, Int )]
+        assert(tuple9Value.get === ( 1,2,3,4,5,6,7,8,9))
+```
 
-      select user_name from user_table
-      where login = :login and exist (select id from user_priv where user_login = :login)
-
-then I only need to call the parameterByName once:
-
-          .parameterByName("login", "mylogin")
-
-<h4>
-Return a list of values
-</h4>
-    // example 1
-    val results = qm.queryWithClass("show databases", classOf[String])
-                    .toList()
-
-    //example 2 with specified fetch size
-    val sqlString = "select table_name from information_schema.tables limit 10, 20"
-    val results = qm.queryWithClass(sqlString, classOf[String]).fetchSize(5).toList()
-
-<h4>
-Customized classes
-</h4>
-
-   In most cases, we would like to return not just String, Long and double, but our
-   own classes structures. In OR world, this would mean mapping the table to class object etc.
-
-   In SPA there is no such table to object mapping. But we do need to let the SPA know how the
-   our field/method/parameter of our class related to certain column name (or label) in the query.
-
-   so we can write something like this:
-
-   val results:List[TableMetadata] = qm.queryWithClass(sqlString,classOf[TableMetadata]).toList()
-
-   Since we don't require you specify the table, you can actually write a join query from multiple
-   tables and result in one class object
-
-  For example
-  <pre><code>
-  class Dummy () {
-    @BeanProperty var x:String = null
-    @BeanProperty var y:String = null
-  }
-
-  val sql = "select a.x as x, b.y as y from table_a a, table_b b where a.id = b.id"
-  val results:List[TableMetadata] = qm.queryWithClass(sqlString,classOf[Dummy]).toList()
-
-   </code></pre>
-  
-  Spa has the following ways to mapping column name (or Column label) to the class methods or parameters.
-
-  <ul>
-    <li>No mapping is needed for single column result Set</li>
-    <li>Use @BeanProperty annotation</li>
-    <li>Use @Column annotation</li>
-  </ul>
-
-  Java non-static Inner class and Scala inner class not declared in the companion object are not supported.
-
-<h5>
-  Single Column Results
-<h5>
-
-  Example you see so far are mostly single column of values such String, Long etc.
-  But we can also use it for Java/Scala Objects. For example:
-
-  Suppose we have a object that's serializable,
-
-  <pre><code>
-  class SerializedObj(x: String, z:Long) extends Serializable {
-    override def toString: String = "(" + x + "," + z + ")"
-  }
-  </code></pre>
-
-  and we decide to insert the object as blob into database.
-
-  The table is something like this:
-
-  create table if not exists test2(x BLOB)
-
-  Then we can query the blob by the following:
-  <pre><code>
-
-  val sql = " select x from test2 limit 1"
-  val value = qm.queryWithClass(sql, classOf[SerializedObj]).toSingle()
-  
-  </code></pre>
-
-  There is no mapping needed.
-  
-<h5>
-  Use @BeanProperty annotation
-</h5>
-
-  For example, we have class capture the metadata of the database table:
-  
-  <pre><code>
-  
-  class TableMetadata () {
-    @BeanProperty var schema:String = null
-    @BeanProperty var name:String = null
-    @BeanProperty var tableType:String = null
-    @BeanProperty var createTime: Date = null
-    @BeanProperty var checksum: Long = -1
-  }
-  </code></pre>
-  
-  The class has a default constructor and setter methods (<field>_$eq) generated by compiler.
+up-to-9 tuples are built-in with SPA. I think if there are more than 9, you could consider using a customized class structure. 
    
-   <pre><code>
-   def testSelectWithBeanProperties() {
-
-      val qm = QueryManager(open = getConnection)
-      val sqlString = " select table_schema as 'schema' , " +
-                      "        table_name as 'name', " +
-                      "        table_type as 'tableType', " +
-                      "        create_time as 'createTime', " +
-                      "        ifNull(checksum, -1)  as 'checksum' " +
-                      " from information_schema.tables limit 10 "
-
-      val results = qm.queryWithClass(sqlString,classOf[QueryTest.TableMetadata]).toList()
-      assert (results.size == 10)
-    }
-   </code></pre>
-
-    In this approach, we need to write SQL in such way that return column label or column name match
-    to the field name.
-
-    for example:
-
-        column name    column label    field
-        ------------------------------------
-        table_schema   schema          schema
-        table_name     name            name
-        ...
 
 
-  While if you don't want to re-write SQL or simply want to use "select * from ...", when we need to
-  map column name directly using Column annotation.
-<h5>
-  Use @Column Annotation
-</h5>  
+#### return class structure
 
-  1) Annotation the fields with default constructor
+   In most cases, we would like to return not just simple classes (such as Int, Long, String, Date, double etc.), 
+   but our own class structures. In other words, this would mean mapping the result to class.
+   
+   One important difference from the OR mapping, we are not mapping necessarily Table to Class. but result to class. 
+   this means the return result set could be from one table or a join of many tables. There is no concept of the object relations in 
+   spa.  Once the result column name or alias (column label) is mapped to class variable (detail below), we can use the query in the following way. 
 
-<pre><code>
+```   
+    val results = qm.selectQuery(sql" select * from mytest.COFFEES ").toList[Coffee]
+```   
 
-  class TableMetadata2 () {
-    @Column("table_schema") var schema:String = null
-    @Column("table_name")  var name:String = null
-    @Column("table_type")  var tableType:String = null
-    @Column("create_time")  var createTime: Date = null
-    @Column("checksum")  var checksum: Long = -1
-  }
- </code></pre>
-  Same example as @BeanProperty, we replace the annotation to @Column annotation.
+* In the following, we will use the Coffee table to show this mappng. 
 
-  we can now write the code as follows
+  Here is the table structure: (using mySQL syntax)
+  
+```  
+  create table if not exists mytest.COFFEES(COF_NAME varchar(30), 
+                                            SUP_ID   INTEGER, 
+                                            PRICE    DECIMAL(10,4)
 
-  <pre><code>
-  val sql = " select table_schema, table_name, table_type, create_time, ifNull(checksum, -1) as 'checksum' " +
-            " from information_schema.tables limit 10"
+  case class Coffee(@Column("COF_NAME") name:  String,
+                    @Column("SUP_ID")   supId: Int,
+                    @Column("PRICE")    price: Double)
 
-  val results = qm.queryWithClass(sqlString, classOf[QueryTest.TableMetadata2] ).toList()
-
-  </code></pre>
-  The only thing we have deal with is the null value on checksum,
-
-  ifNull(checksum, -1) as 'checksum'
+```
+ 
+The class structure needs not to be a case class, here we use case class for convenience. Here we use @Column annotation to annotate each
+field in constructor. The @Column is actually a java annotation defined as : 
 
 
-Similarly, we can annotation the class in other ways:
+```
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD,  ElementType.PARAMETER })
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
 
-  here we use default constructor, but instead annotation the field, we put @Column on setter methods
-  for the fields (setSchema, setName), here If the setter method is actually in the format
-  of set<Fieldname>, we don't really need the annotation, as Spa will process it by convention.
+    java.lang.String value() default "" ;
+}
 
-  If you do use @Column on the setter method, the name of the method doesn't really matter. For example
-  the method setSchema could be _mySchema, youSchema, schemaSetter ...
-<pre><code>
-  class TableMetadata4 () {
+```
 
-    var schema:String = null
-    @Column("table_schema")
-    def setSchema(s : String) = this.schema = s
+Here is the complete usage: 
 
-    var name:String = null
-    @Column("table_name")
-    def setName(s: String)  = this.name = s
+```
+    val coffees = List(Coffee("Colombian", 101, 7.99),
+                       Coffee("Colombian Decaf", 101, 8.99),
+                       Coffee("French Roast Decaf", 49, 9.99))
+                     
+    // insert coffees in database ... details in update query section
+    // ....
 
-    @Column("table_type") var tableType:String = null
-    @Column("create_time")  var createTime: Date = null
-    @Column("checksum")  var checksum: Long = -1
-  }
-  </code></pre>
+    val qm = QueryManager(open = getMySQLConnection)
+    val results = qm.selectQuery(sql" select * from mytest.COFFEES ").toList[Coffee]
 
- Or without default constructor, and annotate the parameters of the constructor.
-<pre><code>
-  class TableMetadata6 (@Column("table_schema") val schema:String,
-                        @Column("table_name") val name:String,
-                        @Column("table_type") val tableType: String)    {
+``` 
 
-    @Column("create_time") var createTime: Date = null
-    @Column("checksum")   var  checksum: Long = -1
-  }
-</code></pre>
+#### Query with Iterator
 
-<h4>
-Query with Iterator
-</h4>
 
-  Instead of using Query.toList(), which put every into memory, we can also using
+  Instead of using SelectQuery.toList(), which put every into memory, we can also using
   Query.withIterator() and allows one to process one row at time.
-  here is an example:
-<pre><code>
-  def testSelectWithIterator() {
+  here is the same example again: 
+  
+```
 
-    val qm = QueryManager(open = getConnection)
-    val sqlString = ...
-    val q = qm.queryWithClass(sqlString, classOf[QueryTest.TableMetadata6] )
+      val qm = QueryManager(open = getMySQLConnection)
+      
+      //create database, table and create and insert coffees
+      val coffees = prepareCoffee(qm)
 
-    q.withIterator { it =>
-      var r = it.next()
-      while (r != None) {
+      val q = qm.selectQuery(sql" select * from mytest.COFFEES ")
 
-        //process results r.get
-        ...
-
-        r = it.next()
+      val results =  q.withIterator { it: Iterator[Option[Coffee]] =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
       }
-    }
-  }
-</code></pre>
-<h4>
- Provide your own way of row extraction.
-</h4>
 
- So far, we only allows one way to processing the result set, that is by providing the
- class of the object. This may be ok for most of use cases, but there are cases that you
- would like you own way of extracting the row. This could be that you don't want to define
- a class just for get data out of database.
+```
 
- Spa allows you to do this by providing RowExtractor, there is one example:
+Notice where we leverage foldLeft accumulator to construct the result. The SelectQuery.withIterator() API is defined as : 
 
- In this example, I want to extract the row to be a pair tuple (x, y) instead of
- a class.
-<pre><code>
-      def testRowExtractor() {
-        val qm = QueryManager(open = getConnection)
-        val rowProcessor = new RowExtractor[(String, String)] {
-          def extractRow(oneRow: Map[ColumnMetadata, Any]): (String, String) = {
-            assert(oneRow.size ==2 )
-            val schema = oneRow.filter(c => c._1.colLabel == "table_schema").head._2.toString
-            val name   = oneRow.filter(c => c._1.colLabel == "table_name").head._2.toString
-            (schema, name)
-          }
+```
+  def withIterator[T, A : ClassTag : TypeTag]( f: (Iterator[Option[A]]) => T)  : T 
+  
+```
+Compiler can found out the type T is List[Coffee] and A is Option[Coffee] type. Above example can also written
+as
+
+```
+  val results =  q.withIterator[List[Coffee], Option[Coffee]] { it:  =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
+      }
+      
+```
+but we can omit the certain type information, and let compiler figure it out. 
+
+
+```
+  val results =  q.withIterator { it: Iterator[Option[Coffee]]  =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
+      }
+```
+  
+Here the compiler can figure the resulting T is List[Coffee]; but for compiler to know the Iterator is Iterator[Option[Coffee]]
+we need to indicate it's type : Iterator[Option[Coffee]] 
+
+ 
+#### Provide your own way of row extraction.
+
+
+ So far, we only allows one way to processing the result set, i.e. use built-in class extractor. This may be ok for most of use cases, 
+ but there are cases that you would like you own way of extracting the row. Spa allows you to do this by providing RowExtractor, here is an example:
+ 
+ assume we have a class for CoffeePrice, notice the class doesn't has the Column Annotation. As I am doing my own RowExtraction, I don't need to Column annotation.
+ 
+```
+      case class CoffeePrice( name:  String,
+                              price: Double)
+                        
+      val qm = QueryManager(open = getMySQLConnection)
+
+      val coffees = prepareCoffee(qm)
+
+      val rowProcessor = new RowExtractor[CoffeePrice] {
+
+        def extractRow(oneRowCols: Map[ColumnMetadata, Any]): CoffeePrice = {
+
+          import scala.math.BigDecimal.javaBigDecimal2bigDecimal
+
+          //there should only two columns
+          assert(oneRowCols.size ==2 )
+          val colValues = oneRowCols.map(a => a._1.colLabel -> a._2)
+          val name = colValues.get("COF_NAME").getOrElse("NA").toString
+          val price = colValues.get("PRICE").getOrElse(0).asInstanceOf[java.math.BigDecimal].toDouble
+
+          CoffeePrice(name, price)
         }
-
-        val results = qm.query(" select table_schema, table_name" +
-                               " from information_schema.tables limit 10", rowProcessor).toList()
-        assert(results.size == 10)
       }
+  
+      val results = qm.selectQuery(sql" select COF_NAME, PRICE from mytest.COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
 
-</code></pre>
-<h4>
- update query with "queryForUpdate"
-</h4>
+```
+
+### updateQuery 
 
    Here is an example using update query to create a database
-<pre><code>
-     val createTableSql = "create table if not exists mytest.test(x Integer)"
 
-     qm.queryForUpdate(createTableSql).executeUpdate
+```
+     val createTableSql = sql"create table if not exists mytest.test(x Integer)"
+     qm.updateQuery(createTableSql).executeUpdate
 
-</code></pre>
-<h4>
- Transaction
-</h4>
-   In many applications, we need to perform multiple update/deletes. And we would like
-   all the updates commit to be atomic: all or nothing.
+```
 
-   To do this, SPA QueryManager use Transaction method, here is an example
-<pre><code>
-   val qm = QueryManager(open = getConnection)
+### Batch Update
 
-   qm.transaction() { transaction =>
+JDBC drivers offers batch update capability, which allows one to add several set of the parameters with the same SQL statement. 
+    
+Here is one example, I have pre-created a database called "mytest" and a table on mytest (x Integer, y Integer). 
+Instead of insert one row with one update query, I used the same statement, but each time with different set of the query parameters. 
+and execute the batch update at the end.  Here the each batch parameter is stored into a Map() with key as the index of the position,
+0-based. 
 
-      qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-         .parameterByName("x", 1).executeUpdate
+```
+ 
+       val qm = QueryManager(open = getMySQLConnection)
 
-       qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-         .parameterByName("x", 2).executeUpdate
-     }
+       val q = qm.batchUpdateQuery(sql"insert into mytest.test (x, y) values(?, ?) ")
 
-</code></pre>
-   notice that different from earlier update example, the queryForUpdate method now takes
-   additional argument transaction; and all the udpates are within the closure of
-   a transaction method.
-
-<h4>
- Batch Update
- </h4>
-
-   Batch Update requires a Transaction,
-
-<pre><code>
-    val InsertSql = "insert into mytest.test(x) values (:x)"
-    qm.transaction() { trans =>
-       val q = qm.queryForUpdate(InsertSql, trans)
-       for (i <- 1 to 200 ) {
-               q.parameterByName("x", i)
-               q.addBatch()
+       //index is zero-based
+       val size = 10
+       for (i <- 0 until size ) {
+         val pa = Map(0 -> i, 1 -> i*20) // x  is 0, y  is 1
+         q.addBatch(pa)
        }
+       
        q.executeBatchUpdate
+```
+
+### Transaction
+ 
+   In many applications, we need to perform multiple select/update/deletes. And we would like
+   all the updates commit to be atomic: all or nothing.
+   
+   By default, the UpdateQuery and BatchUpdateQuery will be in one transaction. If none, new transaction will be created and used. 
+   
+   Here is how to use explicit transaction: 
+   
+```
+     qm.transaction() { implicit trans  =>
+    
+         val dropDbSql = sql"drop database if exists mytest"
+         qm.updateQuery(dropDbSql).executeUpdate
+
+         val createDbSql = sql"create database if not exists mytest"
+         qm.updateQuery(createDbSql).executeUpdate
     }
-</code></pre>
+```
 
-<h4>
-Logging
-</h4>
+Here is a test (using ScalaTest) for transaction rollback:    
 
+```
+
+       qm.transaction() { implicit trans =>
+       
+         val createDbSql = sql"create database if not exists mytest"
+         
+         qm.updateQuery(createDbSql).executeUpdate
+
+         // drop database synatax error, the whole transaction should rollack, 
+         // therefore the database should don't be created.
+         
+         val dropDbSql2 = sql"drop database " // noticed that we are missing database name. 
+         
+         intercept[PreparedStatementException] { //expecting
+         
+           qm.updateQuery(dropDbSql2).executeUpdate
+         }
+
+       }
+```
+   
+   
+* NOTE: There is an issue (bug), that this not work on mySQL database.
+
+
+ For select query only, we might not need a transaction, but when we have mix of select and update query, for example
+
+   select
+   update
+   select
+   delete
+   select
+   update
+
+We don't want to start a new connection and close the new connection for every query (select or update), we would like them
+all use the same connection under one transaction. Therefore, even during select query we are also using a transaction.
+as result, we don't immediate close the connection after the select query, rather the connection is closed by Connection closure
+which is part of the transaction, after the transaction is committed or roll back. all the queries within the same transacation 
+shared the same connection.
+
+
+ 
+### Logging
+ 
    SQL logging
 
    When query failed due to SQL error, the Spa will print out the SQL you wrote with parameters
@@ -462,27 +395,75 @@ Logging
 
    You can choose to print this information out even there is no error especially during development
    and testing stage. You can do this by  set Query.logSql(true)
-<pre><code>
-   val q = qm.queryForUpdate(InsertSql, trans)
+   
+```
+   val q = qm.updateQuery(....)
              .logSql(true)
              .executeUpdate
-</code></pre>
-   Connection leaking track logging
+```
+### Other Topics
 
-   QueryManager has two argument
-<pre><code>
 
+#### Connection leaking track logging
+
+   QueryManager has two arguments
+   
+```
    object QueryManager {
 
-    def apply(open: => Connection, logConnection:Boolean= false): QueryManager = {
-        new QueryManager(open, logConnection)
-    }
+     def apply(open: => Option[Connection], logConnection:Boolean= false): QueryManager = {
+         new QueryManager(open, logConnection)
+     }
+
   }
-</code></pre>  
+  
+``` 
 
   When logConnection = true, the Spa will printout when the jdbc connection is opened and closed.
+  
+#### Break long SQL statement into separate lines: 
 
-<h4>Decimal Precision and Scale </h4>
+  When the SQL statement is long, you might want to break it into multiple-line for easy to read. For example,
+
+``` 
+    val sql = " select count(*) from information_schema.tables where table_schema = ? and table_name = ? "
+               
+```
+
+I would like to break it into : 
+
+```
+    val sql = " select count(*) from information_schema.tables " + 
+              " where table_schema = ? and table_name = ? "
+
+```
+
+  
+  With SPA, we are using a String interpolation with sql"..." syntax, breaking the statements will end up like this: 
+  
+```
+      
+       val db="mytest"
+       val table="test"
+       val selectTableSql = sql" select count(*) from information_schema.tables where " +
+                            sql" table_schema = $db and table_name = $table"
+
+```
+ Notice that we are using 
+ 
+ ```
+                     sql"..." +
+                     sql"..." 
+                     
+ ```
+ 
+        
+     
+  
+  
+  
+
+#### Decimal Precision and Scale 
 
  If sql type is Decimal or Numeric, the scale == 0, and precision < 9  return Int
 
@@ -495,7 +476,29 @@ Logging
  If sql type is Decimal or Numeric, the scale > 0, and precision > 9 return BigDecimal
 
 
-<h3> Known Issue </h3>
+## Known Issues
 
+
+Transaction doesn't work for mySQL
      
      
+     
+## Changes from 0.1 version
+
+* Major API changes: the setParameterByName(), setParameterByPos() are removed. These mutable APIs are replaced with immutable APIs
+  The QueryManager's API also changed querys into selectQuery, UpdateQuery, BatchUpdateQuiers  
+
+* Implementation Changes: try to remove all the mutable variables if possible. There are still some mutable variable in BatchQuery
+
+* QueryIterator is replaced by Scala Iterator trait, so we can leverage all power of scala.
+
+* The SPA now has built-in support for tuple results. 
+
+* The customized class, the annotations on Field, and setter methods are removed to discourage mutable field/method. The SPA 2.0 now 
+only supports constructor parameter annotation. 
+
+* Named argument feature is removed. This is consequences of the removing mutable variables. For most of the query, this is not needed anymore. 
+  but for batch query, this is going backward. But I think this is still a good trade off. 
+
+
+
