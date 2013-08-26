@@ -287,62 +287,75 @@ we need to indicate it's type : Iterator[Option[Coffee]]
 
 ```
 
-### update query with "queryForUpdate"
-
+### updateQuery 
 
    Here is an example using update query to create a database
-<pre><code>
-     val createTableSql = "create table if not exists mytest.test(x Integer)"
 
-     qm.queryForUpdate(createTableSql).executeUpdate
+```
+     val createTableSql = sql"create table if not exists mytest.test(x Integer)"
+     qm.updateQuery(createTableSql).executeUpdate
 
-</code></pre>
-<h4>
- Transaction
-</h4>
-   In many applications, we need to perform multiple update/deletes. And we would like
+```
+
+### Batch Update
+
+
+```
+ 
+       val qm = QueryManager(open = getMySQLConnection)
+
+
+       val prefixSql = sql"insert into mytest.test (x, y) values(?, ?) "
+
+       val q = qm.batchUpdateQuery(prefixSql)
+
+       //index is zero-based
+       val size = 10
+       for (i <- 0 until size ) {
+         val pa = Map(0 -> i, 1 -> i*20) // x  is 0, y  is 1
+         q.addBatch(pa)
+       }
+       q.executeBatchUpdate
+```
+
+### Transaction
+ 
+   In many applications, we need to perform multiple select/update/deletes. And we would like
    all the updates commit to be atomic: all or nothing.
+   
+   By default, the UpdateQuery and BatchUpdateQuery will be in one transaction. If none, new transaction will be created and used. 
+   
+   Here is how to use explicit transaction: 
+   
 
-   To do this, SPA QueryManager use Transaction method, here is an example
-<pre><code>
-   val qm = QueryManager(open = getConnection)
+```
 
-   qm.transaction() { transaction =>
+       qm.transaction() { trans =>
+       
+         implicit val transaction = Some(trans)
+         
+         val createDbSql = sql"create database if not exists mytest"
+         
+         qm.updateQuery(createDbSql).executeUpdate
 
-      qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-         .parameterByName("x", 1).executeUpdate
+         // drop database synatax error, the whole transaction should rollack, 
+         // therefore the database should don't be created.
+         
+         val dropDbSql2 = sql"drop database"
+         
+         intercept[PreparedStatementException] { //expecting
+           qm.updateQuery(dropDbSql2).executeUpdate
+         }
 
-       qm.queryForUpdate("insert into mytest.test(x) values (:x)", transaction)
-         .parameterByName("x", 2).executeUpdate
-     }
-
-</code></pre>
+       }
+```
    notice that different from earlier update example, the queryForUpdate method now takes
    additional argument transaction; and all the udpates are within the closure of
    a transaction method.
 
-<h4>
- Batch Update
- </h4>
-
-   Batch Update requires a Transaction,
-
-<pre><code>
-    val InsertSql = "insert into mytest.test(x) values (:x)"
-    qm.transaction() { trans =>
-       val q = qm.queryForUpdate(InsertSql, trans)
-       for (i <- 1 to 200 ) {
-               q.parameterByName("x", i)
-               q.addBatch()
-       }
-       q.executeBatchUpdate
-    }
-</code></pre>
-
-<h4>
-Logging
-</h4>
-
+ 
+### Logging
+ 
    SQL logging
 
    When query failed due to SQL error, the Spa will print out the SQL you wrote with parameters
@@ -350,23 +363,25 @@ Logging
 
    You can choose to print this information out even there is no error especially during development
    and testing stage. You can do this by  set Query.logSql(true)
-<pre><code>
+```
    val q = qm.queryForUpdate(InsertSql, trans)
              .logSql(true)
              .executeUpdate
-</code></pre>
+```
    Connection leaking track logging
 
    QueryManager has two argument
-<pre><code>
-
+```
    object QueryManager {
 
     def apply(open: => Connection, logConnection:Boolean= false): QueryManager = {
         new QueryManager(open, logConnection)
     }
   }
-</code></pre>  
+``` 
+
+
+<h4>
 
   When logConnection = true, the Spa will printout when the jdbc connection is opened and closed.
 
