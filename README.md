@@ -331,13 +331,23 @@ and execute the batch update at the end.  Here the each batch parameter is store
    
    Here is how to use explicit transaction: 
    
+```
+     qm.transaction() { implicit trans  =>
+    
+         val dropDbSql = sql"drop database if exists mytest"
+         qm.updateQuery(dropDbSql).executeUpdate
+
+         val createDbSql = sql"create database if not exists mytest"
+         qm.updateQuery(createDbSql).executeUpdate
+    }
+```
+
+Here is a test (using ScalaTest) for transaction rollback:    
 
 ```
 
-       qm.transaction() { trans =>
+       qm.transaction() { implicit trans =>
        
-         implicit val transaction = Some(trans)
-         
          val createDbSql = sql"create database if not exists mytest"
          
          qm.updateQuery(createDbSql).executeUpdate
@@ -354,9 +364,7 @@ and execute the batch update at the end.  Here the each batch parameter is store
 
        }
 ```
-   notice that different from earlier update example, the UpdateQuery method now takes
-   optional argument transaction; and all the udpates are within the closure of
-   a transaction method.
+   
    
 * NOTE: There is an issue (bug), that this not work on mySQL database.
 
