@@ -368,6 +368,23 @@ Here is a test (using ScalaTest) for transaction rollback:
    
 * NOTE: There is an issue (bug), that this not work on mySQL database.
 
+
+ For select query only, we might not need a transaction, but when we have mix of select and update query, for example
+
+   select
+   update
+   select
+   delete
+   select
+   update
+
+We don't want to start a new connection and close the new connection for every query (select or update), we would like them
+all use the same connection under one transaction. Therefore, even during select query we are also using a transaction.
+as result, we don't immediate close the connection after the select query, rather the connection is closed by Connection closure
+which is part of the transaction, after the transaction is committed or roll back. all the queries within the same transacation 
+shared the same connection.
+
+
  
 ### Logging
  
