@@ -287,7 +287,7 @@ we need to indicate it's type : Iterator[Option[Coffee]]
 
 ```
 
-### updateQuery 
+### UpdateQuery 
 
    Here is an example using update query to create a database
 
@@ -477,7 +477,6 @@ I would like to break it into :
 
 
 ## Known Issues
-
 
 Transaction doesn't work for mySQL
      
