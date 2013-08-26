@@ -144,7 +144,7 @@ up-to-9 tuples are built-in with SPA. I think if there are more than 9, you coul
    
 
 
-#### return class structure
+#### Return class structure
 
    In most cases, we would like to return not just simple classes (such as Int, Long, String, Date, double etc.), 
    but our own class structures. In other words, this would mean mapping the result to class.
@@ -186,7 +186,7 @@ public @interface Column {
 
 ```
 
-Here is the complete usage: 
+Here is the complete usage (using the Coffee example from Slick) : 
 
 ```
     val coffees = List(Coffee("Colombian", 101, 7.99),
