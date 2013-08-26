@@ -499,5 +499,9 @@ only supports constructor parameter annotation.
 * Named argument feature is removed. This is consequences of the removing mutable variables. For most of the query, this is not needed anymore. 
   but for batch query, this is going backward. But I think this is still a good trade off. 
 
+* Ant and Ivy build scripts are removed. From version 0.2.0 on, only sbt build will be used
+
+* TestNG is replaced with ScalaTest
+
 
 
