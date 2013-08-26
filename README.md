@@ -48,7 +48,7 @@ The project is under Apache License
 
 ## Requirements
 
-The 0.2 version requires scala 2.10. The Scala-2.10 features such as string interpolation and implicit class are used. 
+The 0.2 version requires scala 2.10. The Scala-2.10 features such as string interpolation, TypeTag, ClassTag and implicit class are used. 
 
 
 
@@ -299,15 +299,18 @@ we need to indicate it's type : Iterator[Option[Coffee]]
 
 ### Batch Update
 
+JDBC drivers offers batch update capability, which allows one to add several set of the parameters with the same SQL statement. 
+    
+Here is one example, I have pre-created a database called "mytest" and a table on mytest (x Integer, y Integer). 
+Instead of insert one row with one update query, I used the same statement, but each time with different set of the query parameters. 
+and execute the batch update at the end.  Here the each batch parameter is stored into a Map() with key as the index of the position,
+0-based. 
 
 ```
  
        val qm = QueryManager(open = getMySQLConnection)
 
-
-       val prefixSql = sql"insert into mytest.test (x, y) values(?, ?) "
-
-       val q = qm.batchUpdateQuery(prefixSql)
+       val q = qm.batchUpdateQuery(sql"insert into mytest.test (x, y) values(?, ?) ")
 
        //index is zero-based
        val size = 10
@@ -315,6 +318,7 @@ we need to indicate it's type : Iterator[Option[Coffee]]
          val pa = Map(0 -> i, 1 -> i*20) // x  is 0, y  is 1
          q.addBatch(pa)
        }
+       
        q.executeBatchUpdate
 ```
 
@@ -341,17 +345,20 @@ we need to indicate it's type : Iterator[Option[Coffee]]
          // drop database synatax error, the whole transaction should rollack, 
          // therefore the database should don't be created.
          
-         val dropDbSql2 = sql"drop database"
+         val dropDbSql2 = sql"drop database " // noticed that we are missing database name. 
          
          intercept[PreparedStatementException] { //expecting
+         
            qm.updateQuery(dropDbSql2).executeUpdate
          }
 
        }
 ```
-   notice that different from earlier update example, the queryForUpdate method now takes
-   additional argument transaction; and all the udpates are within the closure of
+   notice that different from earlier update example, the UpdateQuery method now takes
+   optional argument transaction; and all the udpates are within the closure of
    a transaction method.
+   
+* NOTE: There is an issue (bug), that this not work on mySQL database.
 
  
 ### Logging
@@ -363,29 +370,75 @@ we need to indicate it's type : Iterator[Option[Coffee]]
 
    You can choose to print this information out even there is no error especially during development
    and testing stage. You can do this by  set Query.logSql(true)
+   
 ```
-   val q = qm.queryForUpdate(InsertSql, trans)
+   val q = qm.updateQuery(....)
              .logSql(true)
              .executeUpdate
 ```
-   Connection leaking track logging
+### Other Topics
 
-   QueryManager has two argument
+
+#### Connection leaking track logging
+
+   QueryManager has two arguments
+   
 ```
    object QueryManager {
 
-    def apply(open: => Connection, logConnection:Boolean= false): QueryManager = {
-        new QueryManager(open, logConnection)
-    }
+     def apply(open: => Option[Connection], logConnection:Boolean= false): QueryManager = {
+         new QueryManager(open, logConnection)
+     }
+
   }
+  
 ``` 
 
-
-<h4>
-
   When logConnection = true, the Spa will printout when the jdbc connection is opened and closed.
+  
+#### Break long SQL statement into separate lines: 
 
-<h4>Decimal Precision and Scale </h4>
+  When the SQL statement is long, you might want to break it into multiple-line for easy to read. For example,
+
+``` 
+    val sql = " select count(*) from information_schema.tables where table_schema = ? and table_name = ? "
+               
+```
+
+I would like to break it into : 
+
+```
+    val sql = " select count(*) from information_schema.tables " + 
+              " where table_schema = ? and table_name = ? "
+
+```
+
+  
+  With SPA, we are using a String interpolation with sql"..." syntax, breaking the statements will end up like this: 
+  
+```
+      
+       val db="mytest"
+       val table="test"
+       val selectTableSql = sql" select count(*) from information_schema.tables where " +
+                            sql" table_schema = $db and table_name = $table"
+
+```
+ Notice that we are using 
+ 
+ ```
+                     sql"..." +
+                     sql"..." 
+                     
+ ```
+ 
+        
+     
+  
+  
+  
+
+#### Decimal Precision and Scale 
 
  If sql type is Decimal or Numeric, the scale == 0, and precision < 9  return Int
 
@@ -398,8 +451,10 @@ we need to indicate it's type : Iterator[Option[Coffee]]
  If sql type is Decimal or Numeric, the scale > 0, and precision > 9 return BigDecimal
 
 
-<h3> Known Issue </h3>
+## Known Issues
 
+
+Transaction doesn't work for mySQL
      
      
      
