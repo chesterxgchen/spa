@@ -370,14 +370,15 @@ Here is a test (using ScalaTest) for transaction rollback:
 
 
  For select query only, we might not need a transaction, but when we have mix of select and update query, for example
-
+ 
+```
    select
    update
    select
    delete
    select
    update
-
+```
 We don't want to start a new connection and close the new connection for every query (select or update), we would like them
 all use the same connection under one transaction. Therefore, even during select query we are also using a transaction.
 as result, we don't immediate close the connection after the select query, rather the connection is closed by Connection closure
@@ -456,12 +457,6 @@ I would like to break it into :
                      sql"..." 
                      
  ```
- 
-        
-     
-  
-  
-  
 
 #### Decimal Precision and Scale 
 
@@ -476,9 +471,17 @@ I would like to break it into :
  If sql type is Decimal or Numeric, the scale > 0, and precision > 9 return BigDecimal
 
 
-## Known Issues
 
-Transaction doesn't work for mySQL
+## Known Issues and Test Requirements
+
+* Transaction doesn't work for mySQL
+
+* I have used mySQL (5.1.66) on debian as database for testing. Other databases has not well tested. To run the test, you 
+  will need to setup mySQL and provide the logini and password for the database. The configuration file is with typesafe config
+  and can be changed in 
+```
+   src/test/resources/application.properties
+```  
      
      
      
