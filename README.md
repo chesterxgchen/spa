@@ -229,47 +229,66 @@ Notice where we leverage foldLeft accumulator to construct the result. The Selec
   def withIterator[T, A : ClassTag : TypeTag]( f: (Iterator[Option[A]]) => T)  : T 
   
 ```
-  Compiler can found out the type T is List[Coffee] and A is Option[Coffee] type; we need to 
+Compiler can found out the type T is List[Coffee] and A is Option[Coffee] type. Above example can also written
+as
+
+```
+  val results =  q.withIterator[List[Coffee], Option[Coffee]] { it:  =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
+      }
+      
+```
+but we can omit the certain type information, and let compiler figure it out. 
+
+
+```
+  val results =  q.withIterator { it: Iterator[Option[Coffee]]  =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
+      }
+```
   
+Here the compiler can figure the resulting T is List[Coffee]; but for compiler to know the Iterator is Iterator[Option[Coffee]]
+we need to indicate it's type : Iterator[Option[Coffee]] 
 
-
-   
-
-  
  
 #### Provide your own way of row extraction.
 
 
- So far, we only allows one way to processing the result set, that is by providing the
- class of the object. This may be ok for most of use cases, but there are cases that you
- would like you own way of extracting the row. This could be that you don't want to define
- a class just for get data out of database.
+ So far, we only allows one way to processing the result set, i.e. use built-in class extractor. This may be ok for most of use cases, 
+ but there are cases that you would like you own way of extracting the row. Spa allows you to do this by providing RowExtractor, here is an example:
+ 
+ assume we have a class for CoffeePrice, notice the class doesn't has the Column Annotation. As I am doing my own RowExtraction, I don't need to Column annotation.
+ 
+```
+      case class CoffeePrice( name:  String,
+                              price: Double)
+                        
+      val qm = QueryManager(open = getMySQLConnection)
 
- Spa allows you to do this by providing RowExtractor, there is one example:
+      val coffees = prepareCoffee(qm)
 
- In this example, I want to extract the row to be a pair tuple (x, y) instead of
- a class.
-<pre><code>
-      def testRowExtractor() {
-        val qm = QueryManager(open = getConnection)
-        val rowProcessor = new RowExtractor[(String, String)] {
-          def extractRow(oneRow: Map[ColumnMetadata, Any]): (String, String) = {
-            assert(oneRow.size ==2 )
-            val schema = oneRow.filter(c => c._1.colLabel == "table_schema").head._2.toString
-            val name   = oneRow.filter(c => c._1.colLabel == "table_name").head._2.toString
-            (schema, name)
-          }
+      val rowProcessor = new RowExtractor[CoffeePrice] {
+
+        def extractRow(oneRowCols: Map[ColumnMetadata, Any]): CoffeePrice = {
+
+          import scala.math.BigDecimal.javaBigDecimal2bigDecimal
+
+          //there should only two columns
+          assert(oneRowCols.size ==2 )
+          val colValues = oneRowCols.map(a => a._1.colLabel -> a._2)
+          val name = colValues.get("COF_NAME").getOrElse("NA").toString
+          val price = colValues.get("PRICE").getOrElse(0).asInstanceOf[java.math.BigDecimal].toDouble
+
+          CoffeePrice(name, price)
         }
-
-        val results = qm.query(" select table_schema, table_name" +
-                               " from information_schema.tables limit 10", rowProcessor).toList()
-        assert(results.size == 10)
       }
+  
+      val results = qm.selectQuery(sql" select COF_NAME, PRICE from mytest.COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
 
-</code></pre>
-<h4>
- update query with "queryForUpdate"
-</h4>
+```
+
+### update query with "queryForUpdate"
+
 
    Here is an example using update query to create a database
 <pre><code>
