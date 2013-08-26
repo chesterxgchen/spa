@@ -43,7 +43,7 @@ class UpdateQuery(queryManager  : QueryManager,
       }
 
     transaction match {
-      case None => queryManager.transaction() { trans => innerUpdate(trans)}
+      case None => queryManager.transaction() { trans => innerUpdate(trans.get)}
       case Some(trans) => innerUpdate(trans)
     }
   }

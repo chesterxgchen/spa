@@ -55,11 +55,11 @@ class QueryManager (open: => Option[Connection], logConnection:Boolean) {
 
 
 
-  def transaction[T](transaction : Option[Transaction] = None)(f: Transaction => T):T = {
+  def transaction[T](transaction : Option[Transaction] = None)(f: Option[Transaction] => T):T = {
     withTransaction(transaction) { tran =>
       try {
         tran.begin()
-        val value = f(tran)
+        val value = f(Some(tran))
         tran.commit()
         value
 

@@ -58,7 +58,7 @@ class SelectQuery(queryManager  : QueryManager,
       }
 
     transaction match {
-       case None => queryManager.transaction() { trans => innerToList(trans)}
+       case None => queryManager.transaction() { trans => innerToList(trans.get)}
        case Some(trans) => innerToList(trans)
      }
 
@@ -83,10 +83,7 @@ class SelectQuery(queryManager  : QueryManager,
       }
 
     transaction match {
-      case None =>
-        queryManager.transaction() { trans =>
-          innerWithIterator(trans)
-        }
+      case None => queryManager.transaction() ( trans => innerWithIterator(trans.get))
       case Some(trans) => innerWithIterator(trans)
     }
 

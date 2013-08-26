@@ -9,7 +9,6 @@ import scala.Tuple3
 import scala.Some
 import java.text.SimpleDateFormat
 import java.util.Date
-import scala.beans.BeanProperty
 
 
 /**
@@ -110,8 +109,7 @@ class NewQueryTest extends BaseTest with FunSpec {
      val qm = QueryManager(open = getMySQLConnection)
 
      it ("test update ") {
-       qm.transaction() { trans =>
-         implicit val transaction = Some(trans)
+       qm.transaction() { implicit trans  =>
          val dropDbSql = sql"drop database if exists mytest"
          qm.updateQuery(dropDbSql).executeUpdate
 
