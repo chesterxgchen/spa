@@ -364,12 +364,9 @@ Here is a test (using ScalaTest) for transaction rollback:
 
        }
 ```
-   
-   
-* NOTE: There is an issue (bug), that this not work on mySQL database.
 
 
- For select query only, we might not need a transaction, but when we have mix of select and update query, for example
+For select query only, we might not need a transaction, but when we have mix of select and update query, for example
  
 ```
    select
@@ -477,7 +474,7 @@ I would like to break it into :
 * Transaction doesn't work for mySQL
 
 * I have used mySQL (5.1.66) on debian as database for testing. Other databases has not well tested. To run the test, you 
-  will need to setup mySQL and provide the logini and password for the database. The configuration file is with typesafe config
+  will need to setup mySQL and provide the login and password for the database. The configuration file is with typesafe config
   and can be changed in 
 ```
    src/test/resources/application.properties
