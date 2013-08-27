@@ -41,6 +41,11 @@ The latest changes (0.2, 0.1 was never officially released) removed the mutable 
 Use at your own risk. I have used this library for my own projects. 
 
 
+## Version 
+
+Current version is 0.2.0
+
+
 ## License
 
 The project is under Apache License
