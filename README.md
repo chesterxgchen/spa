@@ -485,6 +485,7 @@ I would like to break it into :
    src/test/resources/application.properties
 ```  
      
+  Additional supports and tests are added for postgressql. I am using postgres SQL 8.4 on debian to do the tests.
      
      
 ## Changes from 0.1 version
