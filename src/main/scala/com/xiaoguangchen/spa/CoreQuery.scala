@@ -60,12 +60,11 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
         val pstmt =  queryInfo.statementType  match {
           case PREPARED => {
             queryInfo.queryType match {
-              case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+             // case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+              case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)
               case QueryType.UpdateQuery => {
                 database match {
-
                   case MySQL => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
-
                   case Postgres =>
                     // note: Postgres will append RETURNING to the origin SQL if the  "Statement.RETURN_GENERATED_KEYS" is used regardless the select, create delete or update
                     val sql = parsedSql.trim.toLowerCase

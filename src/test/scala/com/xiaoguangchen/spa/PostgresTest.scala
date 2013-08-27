@@ -133,6 +133,22 @@ class PostgresTest extends BaseTest with FunSpec {
 
     }
 
+
+    it("test WithIterator ") {
+
+      val qm = QueryManager(open = getConnection)
+
+      val coffees = prepareCoffee(qm)
+
+      // use Column Annotation on the parameters of the constructor
+      val q = qm.selectQuery(sql" select * from COFFEES ")
+
+      val results =  q.withIterator { it: Iterator[Option[Coffee]] =>
+        it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
+      }
+      assert ( results.size === coffees.size)
+    }
+
   }
 
 
