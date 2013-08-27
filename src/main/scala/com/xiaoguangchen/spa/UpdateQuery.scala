@@ -1,8 +1,6 @@
 package com.xiaoguangchen.spa
 
-import scala.Predef._
-import scala.Array
-import scala.reflect.ClassTag
+import java.sql.{Connection, Statement}
 
 /**
 
@@ -21,9 +19,10 @@ import scala.reflect.ClassTag
   */
 
 class UpdateQuery(queryManager  : QueryManager,
-                  parsedSql     : ParsedSql)
-                 (transaction   : Option[Transaction])
-                  extends CoreQuery[UpdateQuery](parsedSql) {
+                  parsedSql     : ParsedSql,
+                  level: Int = Connection.TRANSACTION_REPEATABLE_READ)
+                  (transaction   : Option[Transaction])
+                  extends CoreQuery[UpdateQuery](parsedSql, QueryInfo(QueryType.UpdateQuery, isolationLevel = level)) {
 
   def executeUpdate: Long = {
 

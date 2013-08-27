@@ -3,6 +3,7 @@ package com.xiaoguangchen.spa
 import scala.Predef._
 import scala.collection.mutable.ArrayBuffer
 import com.xiaoguangchen.spa
+import java.sql.Connection
 
 
 /**
@@ -22,9 +23,10 @@ import com.xiaoguangchen.spa
   */
 
 class BatchUpdateQuery(queryManager  : QueryManager,
-                       parsedSql     : ParsedSql)
+                       parsedSql     : ParsedSql,
+                       level: Int = Connection.TRANSACTION_REPEATABLE_READ)
                       (implicit transaction : Option[Transaction])
-                       extends CoreQuery[BatchUpdateQuery](parsedSql,batch=true) {
+                       extends CoreQuery[BatchUpdateQuery](parsedSql,QueryInfo(QueryType.BatchUpdate, isolationLevel = level)) {
 
   case class PositionParameters(posParam: Map[Int, SQLParameter] )
 

@@ -306,7 +306,6 @@ class NewQueryTest extends BaseTest with FunSpec {
       val coffees = prepareCoffee(qm)
 
       val results = qm.selectQuery(sql" select * from mytest.COFFEES ").toList[Coffee]
-      println("results = " + results)
       assert ( results.size === coffees.size)
 
     }
@@ -322,8 +321,6 @@ class NewQueryTest extends BaseTest with FunSpec {
       val results =  q.withIterator { it: Iterator[Option[Coffee]] =>
         it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
       }
-
-      println("results = " + results)
       assert ( results.size === coffees.size)
     }
 
@@ -347,8 +344,6 @@ class NewQueryTest extends BaseTest with FunSpec {
       }
       // use Column Annotation on the parameters of the constructor
       val results = qm.selectQuery(sql" select COF_NAME, PRICE from mytest.COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
-
-      println("results = " + results)
       assert ( results.size === coffees.size)
 
     }
@@ -375,8 +370,6 @@ class NewQueryTest extends BaseTest with FunSpec {
       }
       // use Column Annotation on the parameters of the constructor
       val results = qm.selectQuery(sql" select COF_NAME, PRICE from mytest.COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
-
-      println("results = " + results)
       assert ( results.size === coffees.size)
 
     }
@@ -460,15 +453,16 @@ class NewQueryTest extends BaseTest with FunSpec {
 
   }
 
-  describe("test select query with different types of annotations") {
+  describe("test select query with annotations") {
 
       val qm = QueryManager(open = getMySQLConnection)
       val coffees = prepareCoffee(qm)
+
       it("constructor with Annotation") {
         val results = qm.selectQuery(sql" select * from mytest.COFFEES ").toList[Coffee]
-        println("results = " + results)
         assert ( results.size === coffees.size)
       }
+      // other types of annotation is no longer supported
 
   }
 
@@ -524,6 +518,7 @@ class NewQueryTest extends BaseTest with FunSpec {
         val userName = config.getString("db.username")
         val password = config.getString("db.password")
         val url = config.getString("db.driver.url")
-        QueryManager.getConnection("com.mysql.jdbc.Driver", url, userName, password)
+        val driver = config.getString("db.driver.name")
+        QueryManager.getConnection(driver, url, userName, password)
     }
 }

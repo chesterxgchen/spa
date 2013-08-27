@@ -139,6 +139,7 @@ class ClassRowProcessor[T: ClassTag : TypeTag ] extends RowExtractor[T] {
 
 
   private def getConstructorArgs(ctor: Constructor[T], oneRow: Map[ColumnMetadata, Any]): Seq[AnyRef] = {
+
     val parAnns = ctor.getParameterAnnotations
     val parTypes =  ctor.getParameterTypes
     val parInfos = parAnns zip parTypes
@@ -152,9 +153,10 @@ class ClassRowProcessor[T: ClassTag : TypeTag ] extends RowExtractor[T] {
         args += null
       }
       else {
-        val ann = colAnns(0).asInstanceOf[Column]
+        val annValue = colAnns(0).asInstanceOf[Column].value().toUpperCase
         val tName = parType.getSimpleName
-        for ((md, value ) <- oneRow; if (ann.value().equals(md.colName) || ann.value.equals(md.colLabel)) ) {
+
+        for ((md, value ) <- oneRow; if annValue.toUpperCase.equals(md.colName.toUpperCase) || annValue.equals(md.colLabel.toUpperCase) ) {
           args += (if (value == null || value == None) null else convertValue(value, tName).asInstanceOf[AnyRef])
         }
 
