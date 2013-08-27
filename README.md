@@ -528,10 +528,17 @@ I would like to break it into :
 
 ## Known Issues and Test Requirements
 
-* Transaction doesn't work for mySQL
+* Transaction doesn't work for mySQL 5.1.66 on my debian squeeze installation.
+  
+  I noticed the issue in 0.1.0 version. The same 0.1.0 code actually works on earlier version mySQL  5.0.51a on debian squeeze
+  installation (a different machine). 
 
-* I have used mySQL (5.1.66) on debian as database for testing. Other databases has not well tested. To run the test, you 
-  will need to setup mySQL and provide the login and password for the database. The configuration file is with typesafe config
+  Therefore, more tests with different installations of mySQL or different machines are needed to verify this. 
+  
+  The same code works for Postpres SQL 8.4. 
+
+
+* To run the test, you  will need to setup mySQL and Postgres SQL and provide the login and password for the database. The configuration file is with typesafe config
   and can be changed in 
 ```
    src/test/resources/application.properties
