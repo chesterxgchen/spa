@@ -46,6 +46,16 @@ Use at your own risk. I have used this library for my own projects.
 Current version is 0.2.0
 
 
+## Build
+
+you can checkout from master branch and build with sbt.
+
+```
+sbt package
+
+```
+
+
 ## License
 
 The project is under Apache License
@@ -56,17 +66,19 @@ The project is under Apache License
 The 0.2 version requires scala 2.10. The Scala-2.10 features such as string interpolation, TypeTag, ClassTag and implicit class are used. 
 
 
+## Tested Databases 
 
+*  MySQL 5.1.66 on Debian squeeze (all tests except for transaction test passed)
+   
+   More tests needed for MySQL to verify the transaction unit test failure. 
 
+*  Postgres SQL 8.4 on Debain sequeze (all tests, including transaction test, passed)
 
 
 ## Usage Examples
 
 In the following, I am going to use the same example other libraries with Coffee. 
 I also uses the existing mySQL database schema tables. 
-
-
-
 
 
 ### Select Query features
@@ -350,24 +362,58 @@ and execute the batch update at the end.  Here the each batch parameter is store
 Here is a test (using ScalaTest) for transaction rollback:    
 
 ```
-
-       qm.transaction() { implicit trans =>
+       //first we drop and recreate a database table. 
        
-         val createDbSql = sql"create database if not exists mytest"
-         
-         qm.updateQuery(createDbSql).executeUpdate
+       val dropTableSql = sql"drop table if exists mytest.test"
+       qm.updateQuery(dropTableSql).executeUpdate
 
-         // drop database synatax error, the whole transaction should rollack, 
-         // therefore the database should don't be created.
-         
-         val dropDbSql2 = sql"drop database " // noticed that we are missing database name. 
-         
-         intercept[PreparedStatementException] { //expecting
-         
-           qm.updateQuery(dropDbSql2).executeUpdate
+       val createTableSql = sql"create table mytest.test(x Integer)"
+       qm.updateQuery(createTableSql).executeUpdate
+
+
+       // then we insert the value 1 into the newly created table
+       qm.updateQuery(sql"insert into mytest.test(x) values (1) ").executeUpdate
+
+       //verify the value 1 is in database       
+       val value = qm.selectQuery(sql"select x from mytest.test").logSql(true).toSingle[Long]
+       assert(value == Some(1))
+
+
+       //update the value to 2 in the table, 
+       //after update, throw exception within the same transaction. 
+       // the exception should cause transaction rollback
+       // the database table should still have the value before transaction : i.e. 1
+       
+       intercept[ExecuteQueryException] {
+         qm.transaction() { implicit trans =>
+
+           qm.updateQuery(sql"update mytest.test set x = 2").executeUpdate
+
+           throw new ExecuteQueryException("see if I can rollback")
          }
-
        }
+
+       //verify that the database table still have value 1
+       
+       val value2 = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
+       assert(value2 === Some(1))
+       
+       // now, repeat the update again, this time, without throw exception. 
+       // the value should be updated after transaction is committed. And the value should be
+       // the newly updated value : 2
+       
+       qm.transaction() { implicit trans =>
+        qm.updateQuery(sql"update mytest.test set x = 2").executeUpdate
+       }
+
+       //verify the new value is 2 
+       
+       val value3 = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
+       assert(value3 === Some(2))
+
+     }
+
+       
 ```
 
 
@@ -461,6 +507,12 @@ I would like to break it into :
  ```
 
 #### Decimal Precision and Scale 
+ 
+ The followings the patterns to match in determine the simple value data type to return. The patterns matched from 
+ top to bottom, if the top one is matched, it will not search to the bottom ones: 
+ 
+ 
+ If sql type is Decimal or Numeric, the scale == 0, and precision  == 0  return Double. 
 
  If sql type is Decimal or Numeric, the scale == 0, and precision < 9  return Int
 
