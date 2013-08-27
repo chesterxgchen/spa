@@ -50,7 +50,7 @@ class SelectQuery(queryManager  : QueryManager,
   def toList[A : ClassTag : TypeTag]: List[A] = {
 
     def innerToList (trans: Transaction)=
-      withQuery (trans) {  rs =>
+      withQuery (trans, forwardOnly = true) {  rs =>
         val processor = new SeqResultSetProcessor()
         val extractor = rowProcessor.getOrElse( new ClassRowProcessor[A])
           .asInstanceOf[RowExtractor[A]]
@@ -77,7 +77,7 @@ class SelectQuery(queryManager  : QueryManager,
     val extractor = rowProcessor.getOrElse( new ClassRowProcessor[A] ).asInstanceOf[RowExtractor[A]]
 
     def innerWithIterator(trans: Transaction) =
-      withQuery(trans) {  rs =>
+      withQuery(trans, forwardOnly = false) {  rs =>
         val processor = new IteratorProcessor[A](rs, extractor)
         f(processor.toIterator)
       }
@@ -95,10 +95,10 @@ class SelectQuery(queryManager  : QueryManager,
   ///////////////////////////////////////////////////////////////////
 
 
-  private def withQuery[T](trans: Transaction) ( f: (ResultSet) =>T) : T = {
+  private def withQuery[T](trans: Transaction, forwardOnly: Boolean) ( f: (ResultSet) =>T) : T = {
     withCleanup {
         val connection = trans.connection
-        val stmt = prepareStatement(connection)
+        val stmt = prepareStatement(connection,forwardOnly)
         setTransactionIsolation(connection)
         withStatement(stmt) {
           if (this.logSql) showSql()

@@ -1,7 +1,6 @@
 package com.xiaoguangchen.spa
 
 import org.scalatest.{Tag, FunSpec}
-import scala.collection.mutable.Stack
 import scala.Predef._
 import java.sql.Connection
 import scala.Tuple3
@@ -147,6 +146,190 @@ class PostgresTest extends BaseTest with FunSpec {
         it.foldLeft(List[Coffee]())( (acc, a) => a.get :: acc).reverse
       }
       assert ( results.size === coffees.size)
+    }
+
+
+    it("test row extractor ") {
+
+      val qm = QueryManager(open = getConnection)
+      val coffees = prepareCoffee(qm)
+      val rowProcessor = new RowExtractor[CoffeePrice] {
+
+        def extractRow(oneRowCols: Map[ColumnMetadata, Any]): CoffeePrice = {
+          //there should only two columns
+          assert(oneRowCols.size ==2 )
+          val colValues = oneRowCols.map(a => a._1.colLabel -> a._2)
+          val name = colValues.get("COF_NAME").getOrElse("NA").toString
+          val price = colValues.get("PRICE").getOrElse(0).asInstanceOf[Int].toDouble
+
+          CoffeePrice(name, price)
+        }
+      }
+      // use Column Annotation on the parameters of the constructor
+      val results = qm.selectQuery(sql" select COF_NAME, PRICE from COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
+      assert ( results.size === coffees.size)
+
+    }
+
+    it("test select query simple data types with mySQL syntax") {
+      {
+        val qm = QueryManager(open = getConnection)
+        val longValue = qm.selectQuery(sql" select 1  ").toSingle[Long]
+        assert(longValue.get === 1L)
+
+        val dblValue= qm.selectQuery(sql"select 1.0  ").toSingle[Double]
+        assert(dblValue.get ===1.0)
+
+        val flValue= qm.selectQuery(sql"select 1.0  ").toSingle[Float]
+        assert(flValue.get ===1.0)
+
+
+        val intValue= qm.selectQuery(sql"select 1  ").toSingle[Int]
+        assert(intValue.get === 1)
+
+        val bigDecimalValue= qm.selectQuery(sql"select 1.0  ").toSingle[BigDecimal]
+        assert(bigDecimalValue.get=== BigDecimal(1.0))
+
+        val stValue= qm.selectQuery(sql"select 'string' ").toSingle[String]
+        assert(stValue.get=== "string")
+
+        val formatter = new SimpleDateFormat("yyyy-MM-dd")
+        val dtValue= qm.selectQuery(sql"select now() "  ).toSingle[Date]
+        assert(formatter.format(dtValue.get) == formatter.format(new Date()) )
+
+
+        val table = "testdate"
+        val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
+          sql" and tablename = $table"
+
+        val count = qm.selectQuery(selectTableSql).toSingle[Long]
+        if (count.get > 0) {
+          qm.updateQuery(sql" drop table testdate ").executeUpdate
+        }
+
+        val createDateTableSql = sql"create table testdate(dt DATE)"
+        qm.updateQuery(createDateTableSql).executeUpdate
+
+        val today = new Date()
+        qm.updateQuery(sql"INSERT INTO testdate(dt) values ($today) ").executeUpdate
+
+        val dt = qm.selectQuery(sql"select dt from testdate where dt = $today ").toSingle[Date]
+        assert(formatter.format(today) == formatter.format(dt.get) )
+      }
+
+    }
+
+
+    it("test select query with tuple data types") {
+      {
+        val qm = QueryManager(open = getConnection)
+        val tuple2Value = qm.selectQuery(sql" select 1, '2' ").toSingle[(Int, String)]
+        assert(tuple2Value.get === (1, "2"))
+
+        val date = new Date()
+        val formatter = new SimpleDateFormat("yyyy-MM-dd")
+        val tuple3Value= qm.selectQuery(sql"select 1.0 as A, '2' as B, now() as C  ").toSingle[(Double, String, Date)]
+        assert(tuple3Value != None)
+
+        val (x,y,z) = tuple3Value.get
+        assert((x,y) === (1.0, "2"))
+        assert( formatter.format(z) === formatter.format(date))
+
+        val tuple4Value = qm.selectQuery(sql" select 1,2,3,4  ").toSingle[(Int,Int, Int,Int   )]
+        assert(tuple4Value.get === ( 1,2,3,4 ))
+
+        val tuple5Value = qm.selectQuery(sql" select 1,2,3,4,5  ").toSingle[(Int, Int, Int,Int, Int )]
+        assert(tuple5Value.get === ( 1,2,3,4,5  ))
+
+        val tuple6Value = qm.selectQuery(sql" select 1,2,3,4,5,6  ").toSingle[(Int, Int, Int,Int, Int, Int  )]
+        assert(tuple6Value.get === ( 1,2,3,4,5,6))
+
+        val tuple7Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7  ").toSingle[(Int, Int, Int,Int, Int, Int, Int )]
+        assert(tuple7Value.get === ( 1,2,3,4,5,6,7))
+
+        val tuple8Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8  ").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int )]
+        assert(tuple8Value.get === ( 1,2,3,4,5,6,7,8 ))
+
+        val tuple9Value = qm.selectQuery(sql" select 1,2,3,4,5,6,7,8,9  ").toSingle[(Int, Int, Int,Int, Int, Int, Int, Int, Int )]
+        assert(tuple9Value.get === ( 1,2,3,4,5,6,7,8,9))
+      }
+
+    }
+
+
+  }
+
+  describe("transaction Test") {
+
+    it("test transaction ") {
+
+      val qm = QueryManager(open = getConnection)
+      qm.transaction() { implicit trans =>
+        val table = "testdate"
+        val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
+          sql" and tablename = $table"
+
+        val count = qm.selectQuery(selectTableSql).toSingle[Long]
+        if (count.get > 0) {
+          qm.updateQuery(sql" drop table testdate ").executeUpdate
+        }
+
+        val count2 = qm.selectQuery(selectTableSql).toSingle[Long]
+        assert (count2.get == 0)
+
+
+        val createTableSql = sql"create table testdate(x INTEGER)"
+        qm.updateQuery(createTableSql).executeUpdate
+
+        val count3 = qm.selectQuery(selectTableSql).toSingle[Long]
+        assert (count3.get > 0)
+
+      }
+    }
+
+    it (" update transaction roll-back") {
+
+      val qm = QueryManager(open = getConnection)
+
+      val table = "test"
+      val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
+        sql" and tablename = $table"
+
+      val count = qm.selectQuery(selectTableSql).toSingle[Long]
+      if (count.get > 0) {
+        qm.updateQuery(sql" drop table test  ").executeUpdate
+      }
+
+      val createTableSql = sql"create table test(x INTEGER)"
+      qm.updateQuery(createTableSql).executeUpdate
+
+      qm.updateQuery(sql"INSERT INTO test(x) values (1) ").executeUpdate
+
+      val xvalue = qm.selectQuery(sql"select x from test").toSingle[Int]
+      assert(xvalue == Some(1))
+
+      intercept[ExecuteQueryException] {
+        qm.transaction() { implicit trans =>
+          //update first
+          qm.updateQuery(sql"update test set x = 2").executeUpdate
+          //then throw exception after update
+          throw new ExecuteQueryException("see if I can rollback")
+        }
+      }
+
+      println("now trying to select again")
+      val xvalue2 = qm.selectQuery(sql"select x from test").toSingle[Int]
+
+      println(" xvalue2= " + xvalue2)
+      assert(xvalue2 === Some(1))
+
+      qm.transaction() { implicit trans =>
+       qm.updateQuery(sql"update test set x = 2").executeUpdate
+      }
+
+      val xvalue3 = qm.selectQuery(sql"select x from test").toSingle[Int]
+      assert(xvalue3 === Some(2))
+
     }
 
   }

@@ -52,7 +52,7 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
 
 
 
-  private[spa] def prepareStatement(connection: Connection ): PreparedStatement = {
+  private[spa] def prepareStatement(connection: Connection, forwardOnly: Boolean = true ): PreparedStatement = {
 
     val database = getDatabase(connection)
     createPrepareStatement { parsedSql =>
@@ -61,7 +61,12 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
           case PREPARED => {
             queryInfo.queryType match {
              // case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
-              case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)
+              case QueryType.SelectQuery =>
+                if (forwardOnly)
+                 connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+                else
+                 connection.prepareStatement(parsedSql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)
+
               case QueryType.UpdateQuery => {
                 database match {
                   case MySQL => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)

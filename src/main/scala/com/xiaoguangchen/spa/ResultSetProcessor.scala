@@ -37,7 +37,7 @@ trait ResultSetProcessor {
 
 
   private def timestampToUtilDate(timestamp: Timestamp): Date = {
-    if ((timestamp != null)) new Date(timestamp.getTime) else null
+    if (timestamp != null) new Date(timestamp.getTime) else null
   }
 
   private def getValue(rs: ResultSet, cmd: ColumnMetadata, columnOffset: Int): Any = {
@@ -46,12 +46,13 @@ trait ResultSetProcessor {
     val value = cmd.colType match {
       case java.sql.Types.INTEGER | java.sql.Types.SMALLINT | java.sql.Types.TINYINT => rs.getInt(columnOffset)
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision <= 9) => rs.getInt(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision > 9 && cmd.colPrecision <= 18) => rs.getLong(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale <= 0 && cmd.colPrecision > 18 ) => rs.getBigDecimal(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale == 0 && cmd.colPrecision == 0 => rs.getDouble(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale <= 0 && cmd.colPrecision <= 9 => rs.getInt(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale <= 0 && cmd.colPrecision > 9 && cmd.colPrecision <= 18 => rs.getLong(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale <= 0 && cmd.colPrecision > 18 => rs.getBigDecimal(columnOffset)
       case java.sql.Types.DOUBLE | java.sql.Types.FLOAT =>  rs.getDouble(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision > 9) => rs.getBigDecimal(columnOffset)
-      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if (cmd.colScale > 0 && cmd.colPrecision <= 9) => rs.getDouble(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale > 0 && cmd.colPrecision > 9 => rs.getBigDecimal(columnOffset)
+      case java.sql.Types.DECIMAL | java.sql.Types.NUMERIC if cmd.colScale > 0 && cmd.colPrecision <= 9 => rs.getDouble(columnOffset)
       case java.sql.Types.DATE | java.sql.Types.TIME | java.sql.Types.TIMESTAMP => timestampToUtilDate(rs.getTimestamp(columnOffset))
       case java.sql.Types.VARCHAR => rs.getString(columnOffset)
       case java.sql.Types.BLOB => rs.getBlob(columnOffset)

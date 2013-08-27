@@ -134,7 +134,7 @@ class NewQueryTest extends BaseTest with FunSpec {
     }
    }
 
-   ignore("transaction Test") {
+   describe("transaction Test") {
      val qm = QueryManager(open = getMySQLConnection)
 
 
@@ -151,46 +151,23 @@ class NewQueryTest extends BaseTest with FunSpec {
        val dbCount = qm.selectQuery(dbCountSql).toSingle[Long]
        assert (dbCount === Some(0))
 
-/*     fixme: calling create database after drop database seems has no effect
-       fixme: when drop database SQL is uncommented, the database somehow is not created, causing the assert to fail.
-       fixme: even though the create SQL is executed.
-       fixme: here some of the theories:
-       fixme: 1) code pieces are executed in parallel somehow ( doesn't make sense)
-       fixme: 2) some kind of bug
+       intercept[PreparedStatementException] { //expecting
 
-       //first drop database;
-       val dropDbSql = sql"drop database if exists mytest"
-       qm.updateQuery(dropDbSql).logSql(true).executeUpdate
+         qm.transaction() { implicit trans =>
 
-       val dbCount = qm.selectQuery(dbCountSql).toSingle[Long]
-       assert (dbCount === Some(0))
+           val createDbSql = sql"create database if not exists mytest"
+           qm.updateQuery(createDbSql).executeUpdate
 
-       val createDbSql = sql"create database if not exists mytest"
-       qm.updateQuery(createDbSql).executeUpdate
-
-       val dbCount1 = qm.selectQuery(dbCountSql).toSingle[Long]
-       assert (dbCount1 === Some(1))
-*/
-
-       qm.transaction() { trans =>
-         implicit val transaction = Some(trans)
-         val createDbSql = sql"create database if not exists mytest"
-         qm.updateQuery(createDbSql).executeUpdate
-
-         //drop database synatax error, the whole transaction should rollack, therefore the database should don't be created.
-         val dropDbSql2 = sql"drop database"
-         intercept[PreparedStatementException] { //expecting
-           qm.updateQuery(dropDbSql2).executeUpdate
+           //drop database synatax error, the whole transaction should rollack, therefore the database should don't be created.
+           val dropDbSql2 = sql"drop database"
+           qm.updateQuery(dropDbSql2).executeUpdate //this should fail
          }
-
        }
+
        val dbCount2 = qm.selectQuery(dbCountSql).toSingle[Long]
        assert (dbCount2 === Some(0))
-
-
      }
 
-     //fixme: this somehow doesn't quite work
 
      it (" update transaction roll-back") {
        val dropTableSql = sql"drop table if exists mytest.test"
@@ -204,22 +181,27 @@ class NewQueryTest extends BaseTest with FunSpec {
        val value = qm.selectQuery(sql"select x from mytest.test").logSql(true).toSingle[Long]
        assert(value == Some(1))
 
+       intercept[ExecuteQueryException] {
+         qm.transaction() { implicit trans =>
 
-       qm.transaction() {trans =>
+           qm.updateQuery(sql"update mytest.test set x = 2").executeUpdate
 
-          implicit val transaction = Some(trans)
-
-         //delete everything
-          qm.updateQuery(sql"update mytest.test set x = 2").executeUpdate
-
-          intercept[ExecuteQueryException] {
-            throw new ExecuteQueryException("see if I can rollback")
-          }
+           throw new ExecuteQueryException("see if I can rollback")
+         }
        }
+
+       val value2 = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
+       assert(value2 === Some(1))
+       qm.transaction() { implicit trans =>
+        qm.updateQuery(sql"update mytest.test set x = 2").executeUpdate
+       }
+
+       val value3 = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
+       assert(value3 === Some(2))
+
      }
 
-     val value = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
-     assert(value === Some(1))
+
    }
 
    describe("batch test ") {
@@ -348,32 +330,6 @@ class NewQueryTest extends BaseTest with FunSpec {
 
     }
 
-
-    it("test Class Row Extractor ") {
-
-      val qm = QueryManager(open = getMySQLConnection)
-      val coffees = prepareCoffee(qm)
-      val rowProcessor = new RowExtractor[CoffeePrice] {
-
-        def extractRow(oneRowCols: Map[ColumnMetadata, Any]): CoffeePrice = {
-
-          import scala.math.BigDecimal.javaBigDecimal2bigDecimal
-          //there should only two columns
-          assert(oneRowCols.size ==2 )
-          val colValues = oneRowCols.map(a => a._1.colLabel -> a._2)
-          val name = colValues.get("COF_NAME").getOrElse("NA").toString
-          //convert BigDecimal to Double
-          val price = colValues.get("PRICE").getOrElse(0).asInstanceOf[java.math.BigDecimal].toDouble
-
-          CoffeePrice(name, price)
-        }
-      }
-      // use Column Annotation on the parameters of the constructor
-      val results = qm.selectQuery(sql" select COF_NAME, PRICE from mytest.COFFEES ", Some(rowProcessor)).toList[CoffeePrice]
-      assert ( results.size === coffees.size)
-
-    }
-
     it("test select query simple data types with mySQL syntax") {
       {
         val qm = QueryManager(open = getMySQLConnection)
@@ -465,29 +421,6 @@ class NewQueryTest extends BaseTest with FunSpec {
       // other types of annotation is no longer supported
 
   }
-
-
-
-
-
-/*
-
- def getMySQLConnection: Option[Connection] = {
-    val userName = "root"
-    val password = "admin"
-    val url = "jdbc:mysql://localhost"
-    QueryManager2.getConnection("com.mysql.jdbc.Driver", url, userName, password)
-  }
-
-  */
-/*
-  def getMySQLConnection: Option[Connection] = {
-    val userName = config.getString("db.username")
-    val password = config.getString("db.password")
-    val url = "jdbc:mysql://192.168.2.199:3360"
-    QueryManager2.getConnection("com.mysql.jdbc.Driver", url, userName, password)
-  }*/
-
 
   def prepareCoffee(qm: QueryManager) : List[Coffee] = {
 
