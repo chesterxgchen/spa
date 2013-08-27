@@ -45,7 +45,7 @@ class SelectQuery(queryManager  : QueryManager,
                   isolationLevel: Int = Connection.TRANSACTION_REPEATABLE_READ)
                  (rowProcessor: Option[RowExtractor[_]] = None)
                  (transaction : Option[Transaction] = None)
-                  extends CoreQuery[SelectQuery](parsedSql, fetchSize, isolationLevel) {
+                  extends CoreQuery[SelectQuery](parsedSql, QueryInfo(QueryType.SelectQuery, fetchSize, isolationLevel)) {
 
   def toList[A : ClassTag : TypeTag]: List[A] = {
 

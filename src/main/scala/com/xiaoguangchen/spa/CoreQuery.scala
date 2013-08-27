@@ -1,7 +1,7 @@
 package com.xiaoguangchen.spa
 
 import java.sql.{ResultSet, Statement, PreparedStatement, Timestamp, Connection}
-import java.util.{Calendar, Date}
+import StatementType._
 import com.xiaoguangchen.spa.QueryType._
 
 
@@ -12,14 +12,11 @@ import com.xiaoguangchen.spa.QueryType._
 
 
 private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
-                                          fetchSize     : Int = 10,
-                                          isolationLevel: Int = Connection.TRANSACTION_REPEATABLE_READ,
-                                          batch         : Boolean = false,
-                                          queryType     : QueryType = QueryType.PREPARED ) {
+                                          queryInfo     : QueryInfo) {
 
 
 
-  checkIsolationLevel(isolationLevel)
+  checkIsolationLevel(queryInfo.isolationLevel)
 
   /** log SQL before query */
 
@@ -57,28 +54,67 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
 
   private[spa] def prepareStatement(connection: Connection ): PreparedStatement = {
 
-    createPrepareStatement {
-      parsedSql =>
-        val pstmt =  this.queryType  match {
+    val database = getDatabase(connection)
+    createPrepareStatement { parsedSql =>
+
+        val pstmt =  queryInfo.statementType  match {
           case PREPARED => {
-            //connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
-            connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
+            queryInfo.queryType match {
+              case QueryType.SelectQuery => connection.prepareStatement(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+              case QueryType.UpdateQuery => {
+                database match {
+
+                  case MySQL => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
+
+                  case Postgres =>
+                    // note: Postgres will append RETURNING to the origin SQL if the  "Statement.RETURN_GENERATED_KEYS" is used regardless the select, create delete or update
+                    val sql = parsedSql.trim.toLowerCase
+                    if (sql.startsWith("update") )
+                       connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
+                    else {
+                      connection.prepareStatement(parsedSql, Statement.NO_GENERATED_KEYS)
+                    }
+
+
+                  case OtherDatabase => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
+                }
+
+              }
+              case QueryType.BatchUpdate => connection.prepareStatement(parsedSql, Statement.NO_GENERATED_KEYS)
+            }
           }
 
-          // not fully tested
-          case CALL => connection.prepareCall(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
-          case unknownType => sys.error("not supported query type" + unknownType)
+          case CALL => {
+            // not tested
+            queryInfo.queryType match {
+              case QueryType.SelectQuery => connection.prepareCall(parsedSql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+              case QueryType.UpdateQuery => connection.prepareCall(parsedSql)
+              case QueryType.BatchUpdate => sys.error(" not supported")
+            }
+          }
+          case _ => sys.error("not supported query type" )
         }
         pstmt
     }
   }
 
 
+  def getDatabase(connection: Connection) :Database = {
 
+    val MySQLUrlPattern = "jdbc:mysql:.*".r
+    val PostgresUrlPattern = "jdbc:postgresql:.*".r
+
+    connection.getMetaData.getURL match {
+      case MySQLUrlPattern() => MySQL
+      case PostgresUrlPattern() => Postgres
+      case _ => OtherDatabase
+    }
+
+  }
 
   private[spa] def setTransactionIsolation(connection: Connection) {
-    if (this.isolationLevel != connection.getTransactionIsolation)
-      connection.setTransactionIsolation(this.isolationLevel)
+    if (queryInfo.isolationLevel != connection.getTransactionIsolation)
+      connection.setTransactionIsolation(queryInfo.isolationLevel)
   }
 
 
@@ -99,7 +135,7 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
   //todo: can we removed the second parameter
   private[spa] def setParameters(stmt: PreparedStatement, params: Map[Int, SQLParameter] = parsedSql.parameterPositions) {
 
-    this.queryType  match {
+    queryInfo.statementType  match {
       case PREPARED =>
         for ((i, p) <- params) {
           val index = i+1
@@ -130,9 +166,10 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
   private[spa] def cleanup() {}
 
   private[spa] def showParameters(params: Map[Int, SQLParameter]) {
-    this.queryType match {
+    queryInfo.statementType match {
       case PREPARED =>
         for ((a, value) <- params) println(s"parameter ${a+1}=${value.parameter}")
+
       case CALL => new UnsupportedOperationException(" not implemented")
       case _ => new UnsupportedOperationException(" not implemented")
     }
