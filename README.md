@@ -314,6 +314,36 @@ we need to indicate it's type : Iterator[Option[Coffee]]
 
 ```
 
+All create, delete, update and insert queries can use UpdateQuery. For Insert queries, the updateQuery() return the auto generated key
+values; other type of update queries (create, delete, update), it returns the execution return codes.  
+
+The auto generated keys must be numeric value, the SPA returns it as long. For MySQL this is the auto_increment number. 
+
+NOTE: THIS IS NOT SUPPORTED for Postgres SQL (detail later). 
+
+here is an example, using mySQL: 
+
+```
+     qm.transaction() { implicit trans  =>
+        val dropDbSql = sql"drop database if exists mytest"
+        qm.updateQuery(dropDbSql).executeUpdate
+
+        val createDbSql = sql"create database if not exists mytest"
+        qm.updateQuery(createDbSql).executeUpdate
+
+        val createTableSql = sql"create table if not exists mytest.test( id  MEDIUMINT NOT NULL AUTO_INCREMENT primary key,  x Integer)"
+        qm.updateQuery(createTableSql).executeUpdate
+
+      }
+
+      val id1 = qm.updateQuery(sql" INSERT INTO mytest.test(x) values (1) ").executeUpdate
+      assert(id1 == 1)
+      val id2 = qm.updateQuery(sql" INSERT INTO mytest.test(x) values (2) ").executeUpdate
+      assert(id2 == 2)
+
+```
+
+
 ### Batch Update
 
 JDBC drivers offers batch update capability, which allows one to add several set of the parameters with the same SQL statement. 
@@ -536,10 +566,22 @@ I would like to break it into :
   Therefore, more tests with different installations of mySQL or different machines are needed to verify this. 
   
   The same code works for Postpres SQL 8.4. 
+  
+  
+* Return auto generated key is NOT supported for Postgres sqL
+
+    Postgres SQL doesn't has good support for returning generated keys
+    
+    we specified Statement.RETURN_GENERATED_KEYS, the Posgres will return all the inserted columns and values in the generatedKeys resultset
+    and there is no distinction on which column is generated or non-generated, making it hard to dynamically determine
+    the generated value. The only way is to tell SPA the auto-generated column name, which is a bit difficult to do in general
+    so I decide to not support return generated Key for postgres until a better solution is available. 
+
 
 
 * To run the test, you  will need to setup mySQL and Postgres SQL and provide the login and password for the database. The configuration file is with typesafe config
   and can be changed in 
+
 ```
    src/test/resources/application.properties
 ```  
