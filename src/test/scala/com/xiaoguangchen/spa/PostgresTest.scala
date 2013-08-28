@@ -34,6 +34,36 @@ class PostgresTest extends BaseTest with FunSpec {
        assert(count1.isDefined)
        assert(count1.get >= 1) //in case of multi-thread tests
      }
+
+
+     ignore(" test return auto generated key is not supported ") {
+
+       qm.transaction() { implicit trans  =>
+
+         val table = "test"
+         val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
+           sql" and tablename = $table"
+
+         val count = qm.selectQuery(selectTableSql).toSingle[Long]
+         if (count.get > 0) {
+           qm.updateQuery(sql" drop table test ").executeUpdate
+         }
+         val count2 = qm.selectQuery(selectTableSql).toSingle[Long]
+         assert(count2.get === 0)
+
+         val createTableSql = sql"create table test( id  SERIAL,  x Integer)"
+         qm.updateQuery(createTableSql).executeUpdate
+
+       }
+
+       val id1 = qm.updateQuery(sql" INSERT INTO test(x) values (3) ").executeUpdate
+       println("id1 = " + id1)
+       assert(id1 == 1)
+
+       val id2 = qm.updateQuery(sql" INSERT INTO test(x) values (4) ").executeUpdate
+        println("id2 = " + id2)
+        assert(id2 == 2)
+     }
    }
 
 

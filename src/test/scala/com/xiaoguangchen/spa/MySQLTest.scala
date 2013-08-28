@@ -16,18 +16,7 @@ import java.util.Date
  * Date: 8/5/13
  */
 
-//constructor annotation
-case class Coffee(@Column("COF_NAME") name:  String,
-                  @Column("SUP_ID")   supId: Int,
-                  @Column("PRICE")    price: Double)
-
-
-case class CoffeePrice( name:  String,
-                        price: Double)
-
-
-
-class NewQueryTest extends BaseTest with FunSpec {
+class MySQLTest extends BaseTest with FunSpec {
 
   describe("A Stack") {
 
@@ -79,7 +68,7 @@ class NewQueryTest extends BaseTest with FunSpec {
   }
 
   describe("MySQL Test") {
-    val qm = QueryManager(open = getMySQLConnection, logConnection = true )
+    val qm = QueryManager(open = getConnection, logConnection = true )
 
     it(" select SQL should return number of tables in mySQL information.schema ") {
       val table = "dummy2"
@@ -106,7 +95,7 @@ class NewQueryTest extends BaseTest with FunSpec {
   }
 
    describe("Update test") {
-     val qm = QueryManager(open = getMySQLConnection)
+     val qm = QueryManager(open = getConnection)
 
      it ("test update ") {
        qm.transaction() { implicit trans  =>
@@ -132,10 +121,30 @@ class NewQueryTest extends BaseTest with FunSpec {
        assert(count1.isDefined)
        assert(count1.get >= 1) //in case of multi-thread tests
     }
+
+    it (" test return auto generated key ") {
+      qm.transaction() { implicit trans  =>
+        val dropDbSql = sql"drop database if exists mytest"
+        qm.updateQuery(dropDbSql).executeUpdate
+
+        val createDbSql = sql"create database if not exists mytest"
+        qm.updateQuery(createDbSql).executeUpdate
+
+        val createTableSql = sql"create table if not exists mytest.test( id  MEDIUMINT NOT NULL AUTO_INCREMENT primary key,  x Integer)"
+        qm.updateQuery(createTableSql).executeUpdate
+
+      }
+
+      val id1 = qm.updateQuery(sql" INSERT INTO mytest.test(x) values (1) ").executeUpdate
+      assert(id1 == 1)
+      val id2 = qm.updateQuery(sql" INSERT INTO mytest.test(x) values (2) ").executeUpdate
+      assert(id2 == 2)
+    }
+
    }
 
    describe("transaction Test") {
-     val qm = QueryManager(open = getMySQLConnection)
+     val qm = QueryManager(open = getConnection)
 
 
      it("test transaction rollback",Tag("debug") ) {
@@ -146,7 +155,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
        //first drop database;
        val dropDbSql = sql"drop database if exists mytest"
-       qm.updateQuery(dropDbSql).logSql(true).executeUpdate
+       qm.updateQuery(dropDbSql).executeUpdate
 
        val dbCount = qm.selectQuery(dbCountSql).toSingle[Long]
        assert (dbCount === Some(0))
@@ -171,14 +180,14 @@ class NewQueryTest extends BaseTest with FunSpec {
 
      it (" update transaction roll-back") {
        val dropTableSql = sql"drop table if exists mytest.test"
-       qm.updateQuery(dropTableSql).logSql(true).executeUpdate
+       qm.updateQuery(dropTableSql).executeUpdate
 
        val createTableSql = sql"create table mytest.test(x Integer)"
-       qm.updateQuery(createTableSql).logSql(true).executeUpdate
+       qm.updateQuery(createTableSql).executeUpdate
 
        qm.updateQuery(sql"insert into mytest.test(x) values (1) ").executeUpdate
 
-       val value = qm.selectQuery(sql"select x from mytest.test").logSql(true).toSingle[Long]
+       val value = qm.selectQuery(sql"select x from mytest.test").toSingle[Long]
        assert(value == Some(1))
 
        intercept[ExecuteQueryException] {
@@ -209,7 +218,7 @@ class NewQueryTest extends BaseTest with FunSpec {
      it(" batch update then followed by select query") {
 
 
-       val qm = QueryManager(open = getMySQLConnection)
+       val qm = QueryManager(open = getConnection)
 
        val dropDbSql = sql"drop database if exists mytest"
        qm.updateQuery(dropDbSql).executeUpdate
@@ -242,7 +251,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
      it("batch test using different data types return tuple3") {
 
-       val qm = QueryManager(open = getMySQLConnection)
+       val qm = QueryManager(open = getConnection)
 
        val dropDbSql = sql"drop database if exists mytest"
        qm.updateQuery(dropDbSql).executeUpdate
@@ -283,7 +292,7 @@ class NewQueryTest extends BaseTest with FunSpec {
   describe("test select query ") {
 
     it("constructor with Annotation") {
-      val qm = QueryManager(open = getMySQLConnection)
+      val qm = QueryManager(open = getConnection)
 
       val coffees = prepareCoffee(qm)
 
@@ -294,7 +303,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
     it("test WithIterator ") {
 
-      val qm = QueryManager(open = getMySQLConnection)
+      val qm = QueryManager(open = getConnection)
       val coffees = prepareCoffee(qm)
 
       // use Column Annotation on the parameters of the constructor
@@ -308,7 +317,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
     it("test row extractor ") {
 
-      val qm = QueryManager(open = getMySQLConnection)
+      val qm = QueryManager(open = getConnection)
       val coffees = prepareCoffee(qm)
       val rowProcessor = new RowExtractor[CoffeePrice] {
 
@@ -332,7 +341,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
     it("test select query simple data types with mySQL syntax") {
       {
-        val qm = QueryManager(open = getMySQLConnection)
+        val qm = QueryManager(open = getConnection)
         val longValue = qm.selectQuery(sql" select 1 from dual").toSingle[Long]
         assert(longValue.get === 1L)
 
@@ -372,7 +381,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
     it("test select query with tuple data types") {
       {
-        val qm = QueryManager(open = getMySQLConnection)
+        val qm = QueryManager(open = getConnection)
         val tuple2Value = qm.selectQuery(sql" select 1, '2' from dual").toSingle[(Int, String)]
         assert(tuple2Value.get === (1, "2"))
 
@@ -411,7 +420,7 @@ class NewQueryTest extends BaseTest with FunSpec {
 
   describe("test select query with annotations") {
 
-      val qm = QueryManager(open = getMySQLConnection)
+      val qm = QueryManager(open = getConnection)
       val coffees = prepareCoffee(qm)
 
       it("constructor with Annotation") {
@@ -447,7 +456,7 @@ class NewQueryTest extends BaseTest with FunSpec {
     coffees
   }
 
-  def getMySQLConnection: Option[Connection] = {
+  def getConnection: Option[Connection] = {
         val userName = config.getString("db.username")
         val password = config.getString("db.password")
         val url = config.getString("db.driver.url")
