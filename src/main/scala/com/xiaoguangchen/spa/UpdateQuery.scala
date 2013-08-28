@@ -1,6 +1,6 @@
 package com.xiaoguangchen.spa
 
-import java.sql.{Connection, Statement}
+import java.sql.{ResultSetMetaData, Connection, Statement}
 
 /**
 
@@ -39,6 +39,8 @@ class UpdateQuery(queryManager  : QueryManager,
           val rs = stmt.getGeneratedKeys
           if (rs.next()) rs.getLong(1) else code.toLong
         }
+
+
       }
 
     transaction match {
