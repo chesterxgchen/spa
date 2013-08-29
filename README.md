@@ -578,6 +578,22 @@ I would like to break it into :
     so I decide to not support return generated Key for postgres until a better solution is available. 
 
 
+* Issue with Sqlite
+
+  I did an prelimary test on SQLite: 3.7.2 with org.xerial sqlite-jdbc driver. But the basic operation failed 
+  at ResultSet.wasNull() call with the following error: 
+ 
+Cause: java.sql.SQLException: column -1 out of bounds [1,1]
+[info]   at org.sqlite.RS.checkCol(RS.java:71)
+[info]   at org.sqlite.RS.markCol(RS.java:78)
+[info]   at org.sqlite.RS.wasNull(RS.java:208)
+[info]   at com.xiaoguangchen.spa.ResultSetProcessor$class.com$xiaoguangchen$spa$ResultSetProcessor$$getValue(ResultSetProcessor.scala:45)
+
+
+ This looks like an issue with Sqlite or sqlite JDBC driver, so I am not able to support sqlite at the moment
+
+
+
 
 * To run the test, you  will need to setup mySQL and Postgres SQL and provide the login and password for the database. The configuration file is with typesafe config
   and can be changed in 
