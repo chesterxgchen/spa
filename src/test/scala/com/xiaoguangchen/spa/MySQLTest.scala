@@ -373,7 +373,9 @@ class MySQLTest extends BaseTest with FunSpec {
         val today = new Date()
         qm.updateQuery(sql"INSERT INTO mytest.testDate(dt) values ($today) ").executeUpdate
 
-        val dt = qm.selectQuery(sql"select dt from mytest.testDate where dt = $today ").toSingle[Date]
+
+        val dateStr = formatter.format(today)
+        val dt = qm.selectQuery(sql"select dt from mytest.testDate where Date(dt) = $dateStr ").logSql(true).toSingle[Date]
         assert(formatter.format(today) == formatter.format(dt.get) )
       }
 
