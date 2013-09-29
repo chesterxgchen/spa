@@ -20,6 +20,8 @@ import java.util.Date
 
 class OracleTest extends BaseTest with FunSpec {
 
+  if (database == Oracle) {
+
   ignore("Oracle Test") {
     val qm = QueryManager(open = getConnection, logConnection = true )
 
@@ -372,13 +374,5 @@ class OracleTest extends BaseTest with FunSpec {
     coffees
   }
   */
-
-
-  def getConnection: Option[Connection] = {
-    val userName = config.getString("db.oracle.username")
-    val password = config.getString("db.oracle.password")
-    val url = config.getString("db.oracle.driver.url")
-    val driver = config.getString("db.oracle.driver.name")
-    QueryManager.getConnection(driver, url, userName, password)
-  }
+}
 }

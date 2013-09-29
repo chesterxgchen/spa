@@ -70,23 +70,21 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
               case QueryType.UpdateQuery => {
                 database match {
                   case MySQL => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
-                  case Postgres =>
-                    connection.prepareStatement(parsedSql, Statement.NO_GENERATED_KEYS)
+                  case PostgreSQL =>
+                    connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
 
                     // note: Postgres will append RETURNING to the origin SQL if the  "Statement.RETURN_GENERATED_KEYS" is used regardless the select, create delete or update
                     // Postgres SQL doesn't has good support for returning generated keys
                     // If we specified RETURN_GENERATED_KEYS, the Posgres will return all the inserted columns and values in the generatedKeys resultset
-                    // and there is no distinction on which column is generated or non-generated, making it hard to dynamically determine
-                    // the generated value. The only way is to tell SPA the auto-generated column name, which is a bit difficult to do in general
-                    // so I decide to not support return generated Key for postgres
-/*
+
+
                     val sql = parsedSql.trim.toLowerCase
                     if (sql.startsWith("insert"))
                        connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
                     else {
                       connection.prepareStatement(parsedSql, Statement.NO_GENERATED_KEYS)
                     }
-*/
+
                   case OtherDatabase => connection.prepareStatement(parsedSql, Statement.RETURN_GENERATED_KEYS)
                 }
 
@@ -112,14 +110,12 @@ private [spa] abstract class CoreQuery[Q](parsedSql     : ParsedSql ,
 
   def getDatabase(connection: Connection) :Database = {
 
-    val MySQLUrlPattern = "jdbc:mysql:.*".r
-    val PostgresUrlPattern = "jdbc:postgresql:.*".r
-
-    connection.getMetaData.getURL match {
-      case MySQLUrlPattern() => MySQL
-      case PostgresUrlPattern() => Postgres
+    connection.getMetaData.getDatabaseProductName match  {
+      case "PostgreSQL" => PostgreSQL
+      case "MySQL"     => MySQL
       case _ => OtherDatabase
     }
+
 
   }
 

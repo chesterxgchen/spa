@@ -37,7 +37,30 @@ class UpdateQuery(queryManager  : QueryManager,
           val code = stmt.executeUpdate
 
           val rs = stmt.getGeneratedKeys
-          if (rs.next()) rs.getLong(1) else code.toLong
+
+
+          // Note: for MySQL, the returned the column is "GENERATED_KEY" instead of the original specified
+          // auto_increment key. And the corresponding     rs.getMetaData.isAutoIncrement(1) is always return false
+          // incorrectly
+
+          // For Postgres SQL
+          // it will append RETURNING to the origin SQL if the  "Statement.RETURN_GENERATED_KEYS" is used regardless the select, create delete or update
+          // Postgres SQL doesn't has good support for returning generated keys
+          // If we specified RETURN_GENERATED_KEYS, the Posgres will return all the inserted columns and values in the generatedKeys resultset
+          // luckily, rs.getMetaData.isAutoIncrement() does work, and corresponding get column name is also correct.
+
+
+          getDatabase(connection) match  {
+            case MySQL =>
+              if (rs.next()) rs.getLong(1) else code.toLong
+            case _ =>
+              val keys = for {
+                i <- 1 to rs.getMetaData.getColumnCount
+                if  rs.next() && rs.getMetaData.isAutoIncrement(i)
+              } yield rs.getLong(i)
+              if (keys.isEmpty) code.toLong else keys.head
+          }
+
         }
 
 

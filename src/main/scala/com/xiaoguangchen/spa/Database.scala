@@ -8,6 +8,7 @@ package com.xiaoguangchen.spa
 trait Database
 
 object MySQL         extends Database
-object Postgres      extends Database
+object PostgreSQL      extends Database
+object Oracle        extends Database
 object OtherDatabase extends Database
 
