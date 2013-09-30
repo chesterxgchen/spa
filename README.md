@@ -571,7 +571,9 @@ I would like to break it into :
 
 * I expect only you will only run one of the databases, so change the above property file database vendor to the one you want to test:
 
-for example, the following, set the database to postgres.
+for example, the following, set the database to postgres, which means the database connection will load from application.properties
+to point to postgres SQL database connection properties. The db.vendor property only affects SPA tests,
+it is not used by SPA main source code.
 
 ```
 # database vendor, specify the proper value to test the corresponding
