@@ -12,7 +12,6 @@ mapping library either. There is no special query language, joins etc, just plai
 The following are some of the features support by SPA:
 
 
-
 * The spa is resource safe: queries will with close the connection/statement/resultSet without user to worry about the leaking of resources. 
 * flexible ways of handling results via toList, toSingle and withIterator methods
 * Use can also customize results processing via Customized RowExtractor
@@ -69,10 +68,12 @@ The 0.2 version requires scala 2.10. The Scala-2.10 features such as string inte
 ## Tested Databases 
 
 *  MySQL 5.1.66 on Debian squeeze (all tests except for transaction test passed)
-   
-   More tests needed for MySQL to verify the transaction unit test failure. 
+
+*  MySQL 5.6.13  on osx10.8 (x86_64) on MacBook Pro
 
 *  Postgres SQL 8.4 on Debain sequeze (all tests, including transaction test, passed)
+
+*  Postgres SQL 9.3.0 on osx10.8 (x86_64) on MacBook Pro (all tests, including transaction test, passed)
 
 
 ## Usage Examples
@@ -558,42 +559,7 @@ I would like to break it into :
 
 ## Known Issues and Test Requirements
 
-* Transaction doesn't work for mySQL 5.1.66 on my debian squeeze installation.
-  
-  I noticed the issue in 0.1.0 version. The same 0.1.0 code actually works on earlier version mySQL  5.0.51a on debian squeeze
-  installation (a different machine). 
-
-  Therefore, more tests with different installations of mySQL or different machines are needed to verify this. 
-  
-  The same code works for Postpres SQL 8.4. 
-  
-  
-* Return auto generated key is NOT supported for Postgres sqL
-
-    Postgres SQL doesn't has good support for returning generated keys
-    
-    we specified Statement.RETURN_GENERATED_KEYS, the Posgres will return all the inserted columns and values in the generatedKeys resultset
-    and there is no distinction on which column is generated or non-generated, making it hard to dynamically determine
-    the generated value. The only way is to tell SPA the auto-generated column name, which is a bit difficult to do in general
-    so I decide to not support return generated Key for postgres until a better solution is available. 
-
-
-* Issue with Sqlite
-
-  I did an prelimary test on SQLite: 3.7.2 with org.xerial sqlite-jdbc driver. But the basic operation failed 
-  at ResultSet.wasNull() call with the following error: 
-  
-```
-Cause: java.sql.SQLException: column -1 out of bounds [1,1]
-[info]   at org.sqlite.RS.checkCol(RS.java:71)
-[info]   at org.sqlite.RS.markCol(RS.java:78)
-[info]   at org.sqlite.RS.wasNull(RS.java:208)
-[info]   at com.xiaoguangchen.spa.ResultSetProcessor$class.com$xiaoguangchen$spa$ResultSetProcessor$$getValue(ResultSetProcessor.scala:45)
-```
-
- This looks like an issue with Sqlite or sqlite JDBC driver, so I am not able to support sqlite at the moment
-
-
+* only support mySQL and postgres SQL at the moment. More tests needed for other databases (oracle, sql server and derby etc.)
 
 
 * To run the test, you  will need to setup mySQL and Postgres SQL and provide the login and password for the database. The configuration file is with typesafe config
@@ -601,11 +567,65 @@ Cause: java.sql.SQLException: column -1 out of bounds [1,1]
 
 ```
    src/test/resources/application.properties
-```  
-     
-  Additional supports and tests are added for postgressql. I am using postgres SQL 8.4 on debian to do the tests.
-     
-     
+```
+
+* I expect only you will only run one of the databases, so change the above property file database vendor to the one you want to test:
+
+for example, the following, set the database to postgres.
+
+```
+# database vendor, specify the proper value to test the corresponding
+# database.
+# the values are
+# mysql,  postgres
+
+db.vendor= postgres
+
+```
+
+* To run the tests, you will need to install SBT to compile, package and test
+
+here is how to run the tests (written in ScalaTest)
+
+```
+sbt test
+
+```
+
+* Scala 2.10.0 vs. 2.10.2
+
+If you change the Scala version from 2.10.0 to 2.10.2, in build.sbt
+```
+scalaVersion  := "2.10.2"
+
+...
+
+  "org.scala-lang"            % "scala-reflect"          % "2.10.2"
+
+
+```
+
+you will get the following errors, when you do any sbt command.
+
+[warn] Potentially incompatible versions of dependencies of {file:/Users/chester/projects/spa/}default-662c05:
+[warn]    org.scala-lang: 2.10.2, 2.10.0
+
+This is mainly related to the "scala-relfect" version. For example, change scala-reflect to 2.10.0 but keeps scalaVersion
+to Scala-2.10.2
+
+```
+scalaVersion  := "2.10.2"
+
+...
+
+  "org.scala-lang"            % "scala-reflect"          % "2.10.0"
+
+```
+
+This works fine as well. So this is what we will keep.
+
+
+
 ## Changes from 0.1 version
 
 * Major API changes: the setParameterByName(), setParameterByPos() are removed. These mutable APIs are replaced with immutable APIs
