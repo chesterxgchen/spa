@@ -69,7 +69,7 @@ The 0.2 version requires scala 2.10. The Scala-2.10 features such as string inte
 
 *  MySQL 5.1.66 on Debian squeeze (all tests except for transaction test passed)
 
-*  MySQL 5.6.13  on osx10.8 (x86_64) on MacBook Pro
+*  MySQL 5.6.13  on osx10.8 (x86_64) on MacBook Pro (all tests, including transaction test, passed)
 
 *  Postgres SQL 8.4 on Debain sequeze (all tests, including transaction test, passed)
 
@@ -172,7 +172,8 @@ up-to-9 tuples are built-in with SPA. I think if there are more than 9, you coul
    spa.  Once the result column name or alias (column label) is mapped to class variable (detail below), we can use the query in the following way. 
 
 ```   
-    val results = qm.selectQuery(sql" select * from mytest.COFFEES ").toList[Coffee]
+    val results = qm.selectQuery(sql" select * from mytest.COFFEES ")
+                     .toList[Coffee]
 ```   
 
 * In the following, we will use the Coffee table to show this mappng. 
@@ -319,8 +320,6 @@ All create, delete, update and insert queries can use UpdateQuery. For Insert qu
 values; other type of update queries (create, delete, update), it returns the execution return codes.  
 
 The auto generated keys must be numeric value, the SPA returns it as long. For MySQL this is the auto_increment number. 
-
-NOTE: THIS IS NOT SUPPORTED for Postgres SQL (detail later). 
 
 here is an example, using mySQL: 
 
