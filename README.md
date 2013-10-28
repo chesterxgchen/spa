@@ -626,11 +626,12 @@ scalaVersion  := "2.10.2"
 This works fine as well. So this is what we will keep.
 
 
-## Areas I am thinking about: 
+## Things on my mind for SPA: 
 
   * Using macro to replace java reflection
-  * change throw exception to Scala error try .. sucecss/failure
+  * change throw exception to Scala error handling with try .. sucecss/failure
   * asynchornize JDBC call
+  * publish the artifact in maven repository
   * 
 
 ## Changes from 0.1 version
