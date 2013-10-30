@@ -122,7 +122,7 @@ open.
       val r = qm.selectQuery(parsedSql).toList[String]
 ```
 
-toList() will return a list of queried values. Here above examples returns all the table names from the mySQL information_schema.tables. 
+toList() will return a list of queried values. The above example returns all tables' names from the mySQL information_schema.tables. 
 
 #### Return tuples
 ```
