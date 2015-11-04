@@ -5,7 +5,7 @@ import com.xiaoguangchen.spa.annotation.Column
 import java.sql.Connection
 
 /**
-  * author: Chester Chen (chester@tingatech.com) 
+  * author: Chester Chen
   * Date: 1/23/13 9:15 AM
   */
 class BaseTest {
