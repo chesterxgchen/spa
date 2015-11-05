@@ -2,7 +2,7 @@ organization := "com.xiaoguangchen"
 
 name := "spa"
 
-version := "0.2.0-SNAPSHOT"
+version := "0.2.1"
 
 scalaVersion  := "2.10.2"
 

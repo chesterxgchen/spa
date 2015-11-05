@@ -6,4 +6,15 @@ class SQLParameter(val parameter: Any, val sqlType: Int = java.sql.Types.NULL) e
   override def toString: String = {
     parameter  + ":"  + sqlType
   }
+
+  override def equals(obj: scala.Any): Boolean = {
+     obj match {
+       case other: SQLParameter =>
+         this.parameter == other.parameter &&
+           this.sqlType == other.sqlType
+       case _ =>
+         false
+     }
+
+  }
 }

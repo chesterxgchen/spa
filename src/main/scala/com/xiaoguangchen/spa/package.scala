@@ -28,10 +28,18 @@ package object spa {
     def parameters (): Map[Int, SQLParameter] = positionedParameters
 
     def sql( args:Any*): ParsedSql = {
-      val parameters = (args.indices zip args).foldLeft(Map[Int, SQLParameter]())( (acc, a) =>  acc + (a._1 -> toSqlParameter(a._2)))
-      val placeHolders = args.map( a=> "?")
-      val sql = sc.s(placeHolders:_*)
-      ParsedSql(sql, parameters)
+
+      val filterParts: Seq[String] = sc.parts.filter(!_.trim.isEmpty)
+      if (filterParts.isEmpty && args.size == 1) {
+        ParsedSql(args(0).toString, parameters())
+      }
+      else {
+        val parameters = (args.indices zip args).foldLeft(Map[Int, SQLParameter]())( (acc, a) =>  acc + (a._1 -> toSqlParameter(a._2)))
+        val placeHolders = args.map( a=> "?")
+        val sql = sc.s(placeHolders:_*)
+        val raw = sc.raw(placeHolders:_*)
+        ParsedSql(sql, parameters)
+      }
     }
   }
 
