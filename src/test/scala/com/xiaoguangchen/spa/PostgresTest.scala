@@ -17,19 +17,19 @@ class PostgresTest extends BaseTest with FunSpec {
       val qm = QueryManager(open = getConnection)
 
       it("test update ") {
-        val table = "test"
+        val table = "spa_test"
 
         val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
           sql" and tablename = $table"
 
         val count = qm.selectQuery(selectTableSql).toSingle[Long]
         if (count.get > 0) {
-          qm.updateQuery(sql" drop table test ").executeUpdate
+          qm.updateQuery(sql" drop table spa_test ").executeUpdate
         }
         val count2 = qm.selectQuery(selectTableSql).toSingle[Long]
         assert(count2.get === 0)
 
-        val createTableSql = sql"create table test(x Integer)"
+        val createTableSql = sql"create table if not exists spa_test(x Integer)"
         qm.updateQuery(createTableSql).executeUpdate
 
         val count1 = qm.selectQuery(selectTableSql).toSingle[Long]
@@ -47,32 +47,35 @@ class PostgresTest extends BaseTest with FunSpec {
         // the generated value. The only way is to tell SPA the auto-generated column name, which is a bit difficult to do in general
         // so I decide to not support return generated Key for postgres
 
+        val table = "spa_test2"
+
         qm.transaction() {
           implicit trans =>
 
-            val table = "test"
             val selectTableSql = sql" select count(*) from pg_tables where schemaname='public' " +
               sql" and tablename = $table"
 
             val count = qm.selectQuery(selectTableSql).toSingle[Long]
             if (count.get > 0) {
-              qm.updateQuery(sql" drop table test ").executeUpdate
+              qm.updateQuery(sql" drop table $table" ).executeUpdate
             }
             val count2 = qm.selectQuery(selectTableSql).toSingle[Long]
             assert(count2.get === 0)
 
-            val createTableSql = sql"create table test( id  SERIAL,  x Integer)"
+            //qm.updateQuery(sql" drop table spa_test ").executeUpdate
+            val createTableSql = sql"create table if not exists spa_test2 ( id  SERIAL,  x Integer)"
             qm.updateQuery(createTableSql).executeUpdate
 
         }
 
-        val id1 = qm.updateQuery(sql" INSERT INTO test(x) values (3) ").executeUpdate
+         val id1 = qm.updateQuery(sql" INSERT INTO spa_test2(x) values (3) ").executeUpdate
         println("id1 = " + id1)
-        assert(id1 == 1)
+        assert(id1 === 1)
 
-        val id2 = qm.updateQuery(sql" INSERT INTO test(x) values (4) ").executeUpdate
+        val id2 = qm.updateQuery(sql" INSERT INTO spa_test2(x) values (4) ").executeUpdate
         println("id2 = " + id2)
-        assert(id2 == 2)
+        assert(id2 === 2)
+
       }
     }
 
@@ -93,7 +96,7 @@ class PostgresTest extends BaseTest with FunSpec {
           qm.updateQuery(sql" drop table test ").executeUpdate
         }
 
-        val createTableSql = sql"create table test(x Integer, y Integer)"
+        val createTableSql = sql"create table if not exists spa_test(x Integer, y Integer)"
         qm.updateQuery(createTableSql).executeUpdate
 
         val prefixSql = sql"insert into test (x, y) values(?, ?) "
@@ -127,7 +130,7 @@ class PostgresTest extends BaseTest with FunSpec {
           qm.updateQuery(sql" drop table test ").executeUpdate
         }
 
-        val createTableSql = sql"create table test(x DECIMAL(16), y DECIMAL(32), z varchar(30))"
+        val createTableSql = sql"create table if not exists spa_test(x DECIMAL(16), y DECIMAL(32), z varchar(30))"
         qm.updateQuery(createTableSql).executeUpdate
 
         val prefixSql = sql"insert into test (x, y, z) values(?, ?, ?) "
@@ -248,7 +251,7 @@ class PostgresTest extends BaseTest with FunSpec {
             qm.updateQuery(sql" drop table testdate ").executeUpdate
           }
 
-          val createDateTableSql = sql"create table testdate(dt DATE)"
+          val createDateTableSql = sql"create table if not exists testdate(dt DATE)"
           qm.updateQuery(createDateTableSql).executeUpdate
 
           val today = new Date()
@@ -300,6 +303,7 @@ class PostgresTest extends BaseTest with FunSpec {
 
     }
 
+
     describe("transaction Test") {
 
       it("test transaction ") {
@@ -320,7 +324,7 @@ class PostgresTest extends BaseTest with FunSpec {
             assert(count2.get == 0)
 
 
-            val createTableSql = sql"create table testdate(x INTEGER)"
+            val createTableSql = sql"create table if not exists testdate(x INTEGER)"
             qm.updateQuery(createTableSql).executeUpdate
 
             val count3 = qm.selectQuery(selectTableSql).toSingle[Long]
@@ -342,10 +346,10 @@ class PostgresTest extends BaseTest with FunSpec {
           qm.updateQuery(sql" drop table test  ").executeUpdate
         }
 
-        val createTableSql = sql"create table test(x INTEGER)"
+        val createTableSql = sql"create table if not exists spa_test(x INTEGER)"
         qm.updateQuery(createTableSql).executeUpdate
 
-        qm.updateQuery(sql"INSERT INTO test(x) values (1) ").executeUpdate
+        qm.updateQuery(sql"INSERT INTO spa_test(x) values (1) ").executeUpdate
 
         val xvalue = qm.selectQuery(sql"select x from test").toSingle[Int]
         assert(xvalue == Some(1))
@@ -354,30 +358,43 @@ class PostgresTest extends BaseTest with FunSpec {
           qm.transaction() {
             implicit trans =>
             //update first
-              qm.updateQuery(sql"update test set x = 2").executeUpdate
+              qm.updateQuery(sql"update spa_test set x = 2").executeUpdate
               //then throw exception after update
               throw new ExecuteQueryException("see if I can rollback")
           }
         }
 
         println("now trying to select again")
-        val xvalue2 = qm.selectQuery(sql"select x from test").toSingle[Int]
+        val xvalue2 = qm.selectQuery(sql"select x from spa_test").toSingle[Int]
 
         println(" xvalue2= " + xvalue2)
         assert(xvalue2 === Some(1))
 
         qm.transaction() {
           implicit trans =>
-            qm.updateQuery(sql"update test set x = 2").executeUpdate
+            qm.updateQuery(sql"update spa_test set x = 2").executeUpdate
         }
 
-        val xvalue3 = qm.selectQuery(sql"select x from test").toSingle[Int]
+        val xvalue3 = qm.selectQuery(sql"select x from spa_test").toSingle[Int]
         assert(xvalue3 === Some(2))
 
       }
 
     }
 
+/*
+
+
+    describe("Random Tests") {
+      it ("temp test") {
+        val qm = QueryManager(open = getConnection)
+        val r = qm.selectQuery(sql"select * FROM data_mining.election92 where county = 'Carroll' LIMIT 10", Some(new RecordRowExtractor())).toList
+        println("r = " + r)
+
+      }
+    }
+
+*/
 
     def prepareCoffee(qm: QueryManager): List[Coffee] = {
 
@@ -394,10 +411,10 @@ class PostgresTest extends BaseTest with FunSpec {
       }
 
       println(" create table ")
-      val createTableSql = sql"create table coffees(COF_NAME varchar(30), SUP_ID INTEGER, PRICE DECIMAL(10,4))"
+      val createTableSql = sql"create table if not exists if not exists coffees(COF_NAME varchar(30), SUP_ID INTEGER, PRICE DECIMAL(10,4))"
       qm.updateQuery(createTableSql).executeUpdate
 
-      println(" create table done ")
+      println(" create table if not exists  done ")
 
       val coffees = List(Coffee("Colombian", 101, 7.99), Coffee("Colombian Decaf", 101, 8.99), Coffee("French Roast Decaf", 49, 9.99))
 
@@ -415,3 +432,11 @@ class PostgresTest extends BaseTest with FunSpec {
 
   }
 }
+
+class RecordRowExtractor( ) extends RowExtractor[Seq[(String, String)]] {
+  def extractRow(oneRowCols: Map[ColumnMetadata, Any]): Seq[(String, String)] = {
+    val colValues : Seq[(ColumnMetadata, Any)] = oneRowCols.toList.sortBy(a => a._1.colPos)
+    colValues.map(a => a._1.colLabel -> (if (a._2 == null) "NA" else a._2.toString))
+  }
+}
+

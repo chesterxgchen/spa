@@ -42,7 +42,6 @@ trait ResultSetProcessor {
 
   private def getValue(rs: ResultSet, cmd: ColumnMetadata, columnOffset: Int): Any = {
 
-    if (rs.wasNull) return null
     val value = cmd.colType match {
       case java.sql.Types.INTEGER | java.sql.Types.SMALLINT | java.sql.Types.TINYINT => rs.getInt(columnOffset)
       case java.sql.Types.BIGINT => rs.getLong(columnOffset)
@@ -64,6 +63,8 @@ trait ResultSetProcessor {
       case java.sql.Types.BINARY | java.sql.Types.VARBINARY | java.sql.Types.LONGVARBINARY => rs.getBlob(columnOffset)
       case _ => rs.getObject(columnOffset)
     }
+
+    if (rs.wasNull) return null
 
     value
 
